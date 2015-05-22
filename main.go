@@ -1,6 +1,7 @@
 package main
 
 import (
+	//"encoding/json"
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/fsouza/go-dockerclient"
@@ -188,8 +189,9 @@ func main() {
 					Type         string
 				}
 
-				type TemplateImage struct {
-					Type string
+				type Template_Image struct {
+					Type     string
+					Priority int
 				}
 
 				type Image struct {
@@ -204,7 +206,7 @@ func main() {
 					Cmd                string
 					Category           string
 					Importance         string
-					CSDB_TemplateImage TemplateImage
+					CSDB_TemplateImage Template_Image
 					SystemVariables    []Variable
 					Dependants         []Image
 				}
@@ -229,9 +231,7 @@ func main() {
 
 				url := fmt.Sprintf("http://127.0.0.1:9093/DVP/API/1.0/SystemRegistry/TemplateByName/%s", template)
 
-				//"http://127.0.0.1:9093/DVP/API/1.0/SystemRegistry/TemplateByName/DBTEMPLATE"
-
-				s := Result{}
+				var s Result
 
 				r := restclient.RequestResponse{
 					Url:    url,
@@ -243,7 +243,12 @@ func main() {
 					//panic(err)
 				}
 				if status == 200 {
-					fmt.Println("Template Data  -->", s.Result)
+
+					//json.Unmarshal([]byte(r.RawText), &s)
+
+					fmt.Println("Template Data  -->", r.RawText)
+
+					fmt.Println("Template Data  -->", s)
 
 					if s.IsSuccess == true {
 
@@ -268,7 +273,7 @@ func main() {
 
 												container := docker.CreateContainerOptions{}
 												container.Name = img.Name
-												img.Cmd = "postgres"
+												//img.Cmd = "postgres"
 												cmd := []string{img.Cmd}
 
 												/*
@@ -305,7 +310,12 @@ func main() {
 												}
 											}
 
-										} else if img.Type == "DOCKERFILE" {
+										} else if img.Class == "DOCKERFILE" {
+
+											buildOption := docker.BuildImageOptions{Name: img.Name, Dockerfile: "Dockerfile", SuppressOutput: true, OutputStream: os.Stdout, Remote: img.SourceUrl}
+
+											err := client.BuildImage(buildOption)
+											fmt.Printf("BuildContainer --->", err)
 
 										}
 
