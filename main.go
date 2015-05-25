@@ -2,6 +2,7 @@ package main
 
 import (
 	//"encoding/json"
+	"bufio"
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/fsouza/go-dockerclient"
@@ -258,8 +259,31 @@ func main() {
 
 								for _, img := range temp.TemplateImage {
 									fmt.Println(img.CSDB_TemplateImage.Type)
-									if img.CSDB_TemplateImage.Type == "Mandetory" {
+									isInstall := false
 
+									if img.CSDB_TemplateImage.Type == "Mandetory" {
+										isInstall = true
+
+									} else if img.CSDB_TemplateImage.Type == "Optional" {
+
+										fmt.Printf("%s This Service is optional do you want to install it?", img.Name)
+
+										reader := bufio.NewReader(os.Stdin)
+										text, _ := reader.ReadString('y')
+										fmt.Println(text)
+
+										if text == "y" {
+
+											isInstall = true
+											fmt.Printf("Install is true")
+
+										} else {
+											fmt.Printf("Install is false")
+										}
+
+									}
+
+									if isInstall {
 										fmt.Println(img.Class)
 										if img.Class == "DOCKER" {
 
@@ -314,12 +338,50 @@ func main() {
 
 											buildOption := docker.BuildImageOptions{Name: img.Name, Dockerfile: "Dockerfile", SuppressOutput: true, OutputStream: os.Stdout, Remote: img.SourceUrl}
 
-											err := client.BuildImage(buildOption)
+											erry := client.BuildImage(buildOption)
 											fmt.Printf("BuildContainer --->", err)
 
-										}
+											if erry == nil {
 
-									} else if img.CSDB_TemplateImage.Type == "Optional" {
+												container := docker.CreateContainerOptions{}
+												container.Name = img.Name
+												//img.Cmd = "postgres"
+												cmd := []string{img.Cmd}
+
+												/*
+													a := []int{1,2,3}
+													a = append(a, 4)
+													fmt.Println(a)
+
+												*/
+
+												Var := []string{}
+
+												for _, vars := range img.SystemVariables {
+
+													Var = append(Var, fmt.Sprintf("%s=%s", vars.Name, vars.DefaultValue))
+
+												}
+
+												container.Config = &docker.Config{Image: img.DockerUrl, Cmd: cmd, Env: Var}
+
+												fmt.Println(container.Config.Image)
+
+												_, errx := client.CreateContainer(container)
+
+												fmt.Printf("Container --->", errx)
+
+												if errx == nil {
+
+													//fmt.Printf("Container ---> ", cont)
+
+													hostConfig := &docker.HostConfig{}
+
+													errz := client.StartContainer(img.Name, hostConfig)
+													fmt.Printf("Container --->", errz)
+												}
+											}
+										}
 
 									}
 
