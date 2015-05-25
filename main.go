@@ -8,7 +8,110 @@ import (
 	"github.com/fsouza/go-dockerclient"
 	"github.com/jmcvetta/restclient"
 	"os"
+	"sort"
+	"strings"
 )
+
+type Variable struct {
+	Name         string
+	Description  string
+	DefaultValue string
+	Export       bool
+	Type         string
+}
+
+type Template_Image struct {
+	Type     string
+	Priority int
+}
+
+type Image struct {
+	Name               string
+	Description        string
+	Version            string
+	VersionStatus      string
+	SourceUrl          string
+	DockerUrl          string
+	Class              string
+	Type               string
+	Cmd                string
+	Category           string
+	Importance         string
+	CSDB_TemplateImage Template_Image
+	SystemVariables    []Variable
+	Dependants         []Image
+	Services           []Service
+}
+
+type Template struct {
+	Name          string
+	Description   string
+	Class         string
+	Type          string
+	Category      string
+	CompanyId     int
+	TenantId      int
+	TemplateImage []Image
+}
+
+type Result struct {
+	Exception     string
+	CustomMessage string
+	IsSuccess     bool
+	Result        []Template
+}
+
+type ENV struct {
+	Name  string
+	Value string
+}
+
+type Instance struct {
+	Name     string
+	Class    string
+	Type     string
+	Category string
+	UUID     string
+	Image    string
+}
+
+type Deployment struct {
+	Name      string
+	Class     string
+	Type      string
+	Category  string
+	CompanyId int
+	TenantId  int
+	Template  string
+	PublicIP  string
+	UUID      string
+}
+
+type Service struct {
+	Name             string
+	Description      string
+	Class            string
+	Type             string
+	Category         string
+	CompanyId        int
+	TenantId         int
+	MultiPorts       bool
+	Direction        string
+	Protocol         string
+	DefaultStartPort int
+}
+
+type Images []Image
+
+func (s Template) Len() int {
+	return len(s.TemplateImage)
+}
+func (s Template) Swap(i, j int) {
+	s.TemplateImage[i], s.TemplateImage[j] = s.TemplateImage[j], s.TemplateImage[i]
+}
+func (s Template) Less(i, j int) bool {
+	return s.TemplateImage[i].CSDB_TemplateImage.Priority < s.TemplateImage[j].CSDB_TemplateImage.Priority
+}
 
 func main() {
 
@@ -182,54 +285,6 @@ func main() {
 
 				/////////--------------------------------------------------------------------------------------------->
 
-				type Variable struct {
-					Name         string
-					Description  string
-					DefaultValue string
-					Export       bool
-					Type         string
-				}
-
-				type Template_Image struct {
-					Type     string
-					Priority int
-				}
-
-				type Image struct {
-					Name               string
-					Description        string
-					Version            string
-					VersionStatus      string
-					SourceUrl          string
-					DockerUrl          string
-					Class              string
-					Type               string
-					Cmd                string
-					Category           string
-					Importance         string
-					CSDB_TemplateImage Template_Image
-					SystemVariables    []Variable
-					Dependants         []Image
-				}
-
-				type Template struct {
-					Name          string
-					Description   string
-					Class         string
-					Type          string
-					Category      string
-					CompanyId     int
-					TenantId      int
-					TemplateImage []Image
-				}
-
-				type Result struct {
-					Exception     string
-					CustomMessage string
-					IsSuccess     bool
-					Result        []Template
-				}
-
 				url := fmt.Sprintf("http://127.0.0.1:9093/DVP/API/1.0/SystemRegistry/TemplateByName/%s", template)
 
 				var s Result
@@ -257,6 +312,8 @@ func main() {
 
 							for _, temp := range s.Result {
 
+								sort.Sort(temp)
+
 								for _, img := range temp.TemplateImage {
 									fmt.Println(img.CSDB_TemplateImage.Type)
 									isInstall := false
@@ -266,13 +323,15 @@ func main() {
 
 									} else if img.CSDB_TemplateImage.Type == "Optional" {
 
-										fmt.Printf("%s This Service is optional do you want to install it?", img.Name)
+										fmt.Printf("%s %s", img.Name, img.Description)
+										fmt.Printf("Above Service is optional do you want to install it?")
 
 										reader := bufio.NewReader(os.Stdin)
-										text, _ := reader.ReadString('y')
+										text, _ := reader.ReadString('\n')
 										fmt.Println(text)
+										t := strings.TrimSpace(text)
 
-										if text == "y" {
+										if t == "y" {
 
 											isInstall = true
 											fmt.Printf("Install is true")
@@ -309,10 +368,29 @@ func main() {
 
 												Var := []string{}
 
+												fmt.Printf("..........................\n", img.SystemVariables)
+
 												for _, vars := range img.SystemVariables {
 
-													Var = append(Var, fmt.Sprintf("%s=%s", vars.Name, vars.DefaultValue))
+													fmt.Printf("------------>\n", vars.Type)
 
+													varValue := vars.DefaultValue
+
+													if vars.Type == "uservariable" {
+
+														fmt.Printf("Please enter value for ENV %s ", vars.Name)
+														reader := bufio.NewReader(os.Stdin)
+														text, _ := reader.ReadString('\n')
+														fmt.Println(text)
+
+														if len(text) > 0 {
+
+															varValue = strings.TrimSpace(text)
+
+														}
+
+													}
+													Var = append(Var, fmt.Sprintf("%s=%s", vars.Name, varValue))
 												}
 
 												container.Config = &docker.Config{Image: img.DockerUrl, Cmd: cmd, Env: Var}
@@ -382,18 +460,12 @@ func main() {
 												}
 											}
 										}
-
 									}
-
 								}
-
 							}
-
 						}
 					}
-
 				}
-
 			},
 		},
 
