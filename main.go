@@ -1,8 +1,8 @@
 package main
 
 import (
-	//"encoding/json"
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"github.com/codegangsta/cli"
 	"github.com/fsouza/go-dockerclient"
@@ -11,6 +11,20 @@ import (
 	"sort"
 	"strings"
 )
+
+type Service struct {
+	Name             string
+	Description      string
+	Class            string
+	Type             string
+	Category         string
+	CompanyId        int
+	TenantId         int
+	MultiPorts       bool
+	Direction        string
+	Protocol         string
+	DefaultStartPort int
+}
 
 type Variable struct {
 	Name         string
@@ -62,8 +76,15 @@ type Result struct {
 }
 
 type ENV struct {
+	Name   string
+	Value  string
+	Export bool
+}
+
+type Port struct {
 	Name  string
 	Value string
+	Link  bool
 }
 
 type Instance struct {
@@ -73,32 +94,22 @@ type Instance struct {
 	Category string
 	UUID     string
 	Image    string
+	Ports    []Port
+	Envs     []ENV
 }
 
 type Deployment struct {
-	Name      string
-	Class     string
-	Type      string
-	Category  string
-	CompanyId int
-	TenantId  int
-	Template  string
-	PublicIP  string
-	UUID      string
-}
-
-type Service struct {
-	Name             string
-	Description      string
-	Class            string
-	Type             string
-	Category         string
-	CompanyId        int
-	TenantId         int
-	MultiPorts       bool
-	Direction        string
-	Protocol         string
-	DefaultStartPort int
+	Name           string
+	InternalDomain string
+	Class          string
+	Type           string
+	Category       string
+	CompanyId      int
+	TenantId       int
+	Template       string
+	PublicIP       string
+	UUID           string
+	Instances      []Instance
 }
 
 type Images []Image
@@ -312,6 +323,26 @@ func main() {
 
 							for _, temp := range s.Result {
 
+								fmt.Printf("Template found ready to install --> Enter Deployment name\n")
+
+								reader := bufio.NewReader(os.Stdin)
+								text, _ := reader.ReadString('\n')
+								fmt.Println(text)
+								t := strings.TrimSpace(text)
+
+								fmt.Printf("Template found ready to install --> Enter internal domain name\n")
+
+								texxt, _ := reader.ReadString('\n')
+								fmt.Println(texxt)
+								d := strings.TrimSpace(texxt)
+
+								dep := Deployment{Name: t, InternalDomain: d}
+								dep.Class = "USER"
+								dep.Type = "DOCKER"
+								dep.Category = "SINLEHOST"
+								dep.Template = temp.Name
+								dep.PublicIP = host
+
 								sort.Sort(temp)
 
 								for _, img := range temp.TemplateImage {
@@ -344,6 +375,12 @@ func main() {
 
 									if isInstall {
 										fmt.Println(img.Class)
+
+										ins := Instance{Name: img.Name}
+										ins.Class = img.Class
+										ins.Type = img.Type
+										ins.Category = img.Category
+
 										if img.Class == "DOCKER" {
 
 											fmt.Println(img.DockerUrl)
@@ -372,6 +409,10 @@ func main() {
 
 												for _, vars := range img.SystemVariables {
 
+													envx := ENV{}
+													envx.Name = vars.Name
+													envx.Export = vars.Export
+
 													fmt.Printf("------------>\n", vars.Type)
 
 													varValue := vars.DefaultValue
@@ -390,10 +431,76 @@ func main() {
 														}
 
 													}
+
+													envx.Value = varValue
+													ins.Envs = append(ins.Envs, envx)
+
 													Var = append(Var, fmt.Sprintf("%s=%s", vars.Name, varValue))
 												}
 
-												container.Config = &docker.Config{Image: img.DockerUrl, Cmd: cmd, Env: Var}
+												/////////////////////////////////Service Management////////////////////
+
+												for _, servs := range img.Services {
+
+													por := Port{}
+													if servs.Direction == "OUT" {
+														por.Link = true
+													} else {
+														por.Link = false
+													}
+
+													por.Name = fmt.Sprintf("SYS_%s_%s", servs.Category, servs.Type)
+
+													por.Value = fmt.Sprintf("%d", servs.DefaultStartPort)
+
+													ins.Ports = append(ins.Ports, por)
+
+													Var = append(Var, fmt.Sprintf("HOST_%s_%s=%s", servs.Category, servs.Type, servs.DefaultStartPort))
+
+												}
+
+												//////////////////////////////////////////////////////////////////////////
+
+												/////////////////////////////////Dependancy Management////////////////////
+
+												for _, depe := range img.Dependants {
+
+													itemFound := false
+
+													for _, serchint := range dep.Instances {
+
+														if depe.Name == serchint.Name {
+
+															itemFound = true
+															Var = append(Var, fmt.Sprintf("SYS_%s_%s=%s.%s", depe.Category, "HOST", depe.Name, dep.InternalDomain))
+
+															for _, envx := range serchint.Envs {
+
+																Var = append(Var, fmt.Sprintf("SYS_%s_%s=%s", depe.Category, envx.Name, envx.Value))
+															}
+
+															for _, portx := range serchint.Ports {
+
+																Var = append(Var, fmt.Sprintf("%s=%s", portx.Name, portx.Value))
+															}
+
+															break
+														}
+
+													}
+
+													if !itemFound {
+
+														fmt.Println("Dependency Instance %s NotFound ----------->", depe.Name)
+
+													}
+
+												}
+
+												fmt.Println("All VARS ----------->", Var)
+												/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+												container.Config = &docker.Config{Image: img.Name, Cmd: cmd, Env: Var}
 
 												fmt.Println(container.Config.Image)
 
@@ -405,10 +512,11 @@ func main() {
 
 													//fmt.Printf("Container ---> ", cont)
 
-													hostConfig := &docker.HostConfig{}
+													hostConfig := &docker.HostConfig{NetworkMode: "bridge"}
 
 													errz := client.StartContainer(img.Name, hostConfig)
 													fmt.Printf("Container --->", errz)
+
 												}
 											}
 
@@ -440,8 +548,68 @@ func main() {
 													Var = append(Var, fmt.Sprintf("%s=%s", vars.Name, vars.DefaultValue))
 
 												}
+												/////////////////////////////Service Management////////////////////
+												for _, servs := range img.Services {
 
-												container.Config = &docker.Config{Image: img.DockerUrl, Cmd: cmd, Env: Var}
+													por := Port{}
+													if servs.Direction == "OUT" {
+														por.Link = true
+													} else {
+														por.Link = false
+													}
+
+													por.Name = fmt.Sprintf("SYS_%s_%s", servs.Category, servs.Type)
+
+													por.Value = fmt.Sprintf("%d", servs.DefaultStartPort)
+
+													ins.Ports = append(ins.Ports, por)
+
+													Var = append(Var, fmt.Sprintf("HOST_%s_%s=%s", servs.Category, servs.Type, servs.DefaultStartPort))
+
+												}
+
+												///////////////////////////////////////////////////////////////////////
+
+												/////////////////////////////////Dependancy Management////////////////////
+
+												for _, depe := range img.Dependants {
+
+													itemFound := false
+
+													for _, serchint := range dep.Instances {
+
+														if depe.Name == serchint.Name {
+
+															itemFound = true
+															Var = append(Var, fmt.Sprintf("SYS_%s_%s=%s.%s", depe.Category, "HOST", depe.Name, dep.InternalDomain))
+
+															for _, envx := range serchint.Envs {
+
+																Var = append(Var, fmt.Sprintf("SYS_%s_%s=%s", depe.Category, envx.Name, envx.Value))
+															}
+
+															for _, portx := range serchint.Ports {
+
+																Var = append(Var, fmt.Sprintf("%s=%s", portx.Name, portx.Value))
+															}
+
+															break
+														}
+
+													}
+
+													if !itemFound {
+
+														fmt.Println("Dependency Instance %s NotFound ----------->", depe.Name)
+
+													}
+
+												}
+
+												/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+												fmt.Println("All VARS ----------->", Var)
+												container.Config = &docker.Config{Image: img.Name, Cmd: cmd, Env: Var}
 
 												fmt.Println(container.Config.Image)
 
@@ -460,7 +628,25 @@ func main() {
 												}
 											}
 										}
+
+										////////////////////////Add Instance/////////////////////////////////////////////
+
+										dep.Instances = append(dep.Instances, ins)
+
+										/////////////////////////////////////////////////////////////////////
+
 									}
+
+									b, err := json.Marshal(dep)
+									if err != nil {
+										fmt.Println(err)
+										return
+									}
+
+									f, err := os.Create("tempfile")
+
+									f.Write(b)
+									f.Close()
 								}
 							}
 						}
