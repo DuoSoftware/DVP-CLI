@@ -415,6 +415,9 @@ func main() {
 
 												Var := []string{}
 
+												Var = append(Var, fmt.Sprintf("DEPLOYMENT_ENV=%s", "docker"))
+												Var = append(Var, fmt.Sprintf("HOST_NAME=%s", img.Name))
+
 												fmt.Printf("..........................\n", img.SystemVariables)
 
 												for _, vars := range img.SystemVariables {
@@ -554,6 +557,9 @@ func main() {
 												*/
 
 												Var := []string{}
+
+												Var = append(Var, fmt.Sprintf("DEPLOYMENT_ENV=%s", "docker"))
+												Var = append(Var, fmt.Sprintf("HOST_NAME=%s", img.Name))
 
 												fmt.Printf("..........................\n", img.SystemVariables)
 
