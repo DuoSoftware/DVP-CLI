@@ -108,6 +108,7 @@ type Deployment struct {
 	TenantId       int
 	Template       string
 	PublicIP       string
+	PublicDomain   string
 	UUID           string
 	Instances      []Instance
 }
@@ -336,12 +337,21 @@ func main() {
 								fmt.Println(texxt)
 								d := strings.TrimSpace(texxt)
 
+								fmt.Printf("Enter public domain name\n")
+
+								texyt, _ := reader.ReadString('\n')
+								fmt.Println(texyt)
+								p := strings.TrimSpace(texyt)
+
 								dep := Deployment{Name: t, InternalDomain: d}
 								dep.Class = "USER"
 								dep.Type = "DOCKER"
 								dep.Category = "SINLEHOST"
 								dep.Template = temp.Name
+								dep.InternalDomain = d
 								dep.PublicIP = host
+								dep.PublicDomain = fmt.Sprintf("%s.xip.io", host)
+								dep.PublicDomain = p
 
 								sort.Sort(temp)
 
@@ -497,6 +507,8 @@ func main() {
 
 												}
 
+												Var = append(Var, fmt.Sprintf("VIRTUAL_HOST=%s.%s", img.Name, dep.PublicDomain))
+
 												fmt.Println("All VARS ----------->", Var)
 												/////////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -543,11 +555,39 @@ func main() {
 
 												Var := []string{}
 
+												fmt.Printf("..........................\n", img.SystemVariables)
+
 												for _, vars := range img.SystemVariables {
 
-													Var = append(Var, fmt.Sprintf("%s=%s", vars.Name, vars.DefaultValue))
+													envx := ENV{}
+													envx.Name = vars.Name
+													envx.Export = vars.Export
 
+													fmt.Printf("------------>\n", vars.Type)
+
+													varValue := vars.DefaultValue
+
+													if vars.Type == "uservariable" {
+
+														fmt.Printf("Please enter value for ENV %s ", vars.Name)
+														reader := bufio.NewReader(os.Stdin)
+														text, _ := reader.ReadString('\n')
+														fmt.Println(text)
+
+														if len(text) > 0 {
+
+															varValue = strings.TrimSpace(text)
+
+														}
+
+													}
+
+													envx.Value = varValue
+													ins.Envs = append(ins.Envs, envx)
+
+													Var = append(Var, fmt.Sprintf("%s=%s", vars.Name, varValue))
 												}
+
 												/////////////////////////////Service Management////////////////////
 												for _, servs := range img.Services {
 
@@ -607,6 +647,8 @@ func main() {
 												}
 
 												/////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+												Var = append(Var, fmt.Sprintf("VIRTUAL_HOST=%s.%s", img.Name, dep.PublicDomain))
 
 												fmt.Println("All VARS ----------->", Var)
 												container.Config = &docker.Config{Image: img.Name, Cmd: cmd, Env: Var}
