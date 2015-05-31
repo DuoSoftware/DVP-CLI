@@ -401,138 +401,6 @@ func main() {
 											fmt.Printf("pull --->", erry)
 											if erry == nil {
 
-												container := docker.CreateContainerOptions{}
-												container.Name = img.Name
-												//img.Cmd = "postgres"
-												cmd := []string{img.Cmd}
-
-												/*
-													a := []int{1,2,3}
-													a = append(a, 4)
-													fmt.Println(a)
-
-												*/
-
-												Var := []string{}
-
-												Var = append(Var, fmt.Sprintf("DEPLOYMENT_ENV=%s", "docker"))
-												Var = append(Var, fmt.Sprintf("HOST_NAME=%s", img.Name))
-
-												fmt.Printf("..........................\n", img.SystemVariables)
-
-												for _, vars := range img.SystemVariables {
-
-													envx := ENV{}
-													envx.Name = vars.Name
-													envx.Export = vars.Export
-
-													fmt.Printf("------------>\n", vars.Type)
-
-													varValue := vars.DefaultValue
-
-													if vars.Type == "uservariable" {
-
-														fmt.Printf("Please enter value for ENV %s ", vars.Name)
-														reader := bufio.NewReader(os.Stdin)
-														text, _ := reader.ReadString('\n')
-														fmt.Println(text)
-
-														if len(text) > 0 {
-
-															varValue = strings.TrimSpace(text)
-
-														}
-
-													}
-
-													envx.Value = varValue
-													ins.Envs = append(ins.Envs, envx)
-
-													Var = append(Var, fmt.Sprintf("%s=%s", vars.Name, varValue))
-												}
-
-												/////////////////////////////////Service Management////////////////////
-
-												for _, servs := range img.Services {
-
-													por := Port{}
-													if servs.Direction == "OUT" {
-														por.Link = true
-													} else {
-														por.Link = false
-													}
-
-													por.Name = fmt.Sprintf("SYS_%s_%s", servs.Category, servs.Type)
-
-													por.Value = fmt.Sprintf("%d", servs.DefaultStartPort)
-
-													ins.Ports = append(ins.Ports, por)
-
-													Var = append(Var, fmt.Sprintf("HOST_%s_%s=%s", servs.Category, servs.Type, servs.DefaultStartPort))
-
-												}
-
-												//////////////////////////////////////////////////////////////////////////
-
-												/////////////////////////////////Dependancy Management////////////////////
-
-												for _, depe := range img.Dependants {
-
-													itemFound := false
-
-													for _, serchint := range dep.Instances {
-
-														if depe.Name == serchint.Name {
-
-															itemFound = true
-															Var = append(Var, fmt.Sprintf("SYS_%s_%s=%s.%s", depe.Category, "HOST", depe.Name, dep.InternalDomain))
-
-															for _, envx := range serchint.Envs {
-
-																Var = append(Var, fmt.Sprintf("SYS_%s_%s=%s", depe.Category, envx.Name, envx.Value))
-															}
-
-															for _, portx := range serchint.Ports {
-
-																Var = append(Var, fmt.Sprintf("%s=%s", portx.Name, portx.Value))
-															}
-
-															break
-														}
-
-													}
-
-													if !itemFound {
-
-														fmt.Println("Dependency Instance %s NotFound ----------->", depe.Name)
-
-													}
-
-												}
-
-												Var = append(Var, fmt.Sprintf("VIRTUAL_HOST=%s.%s", img.Name, dep.PublicDomain))
-
-												fmt.Println("All VARS ----------->", Var)
-												/////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-												container.Config = &docker.Config{Image: img.Name, Cmd: cmd, Env: Var}
-
-												fmt.Println(container.Config.Image)
-
-												_, errx := client.CreateContainer(container)
-
-												fmt.Printf("Container --->", errx)
-
-												if errx == nil {
-
-													//fmt.Printf("Container ---> ", cont)
-
-													hostConfig := &docker.HostConfig{NetworkMode: "bridge"}
-
-													errz := client.StartContainer(img.Name, hostConfig)
-													fmt.Printf("Container --->", errz)
-
-												}
 											}
 
 										} else if img.Class == "DOCKERFILE" {
@@ -544,137 +412,140 @@ func main() {
 
 											if erry == nil {
 
-												container := docker.CreateContainerOptions{}
-												container.Name = img.Name
-												//img.Cmd = "postgres"
-												cmd := []string{img.Cmd}
-
-												/*
-													a := []int{1,2,3}
-													a = append(a, 4)
-													fmt.Println(a)
-
-												*/
-
-												Var := []string{}
-
-												Var = append(Var, fmt.Sprintf("DEPLOYMENT_ENV=%s", "docker"))
-												Var = append(Var, fmt.Sprintf("HOST_NAME=%s", img.Name))
-
-												fmt.Printf("..........................\n", img.SystemVariables)
-
-												for _, vars := range img.SystemVariables {
-
-													envx := ENV{}
-													envx.Name = vars.Name
-													envx.Export = vars.Export
-
-													fmt.Printf("------------>\n", vars.Type)
-
-													varValue := vars.DefaultValue
-
-													if vars.Type == "uservariable" {
-
-														fmt.Printf("Please enter value for ENV %s ", vars.Name)
-														reader := bufio.NewReader(os.Stdin)
-														text, _ := reader.ReadString('\n')
-														fmt.Println(text)
-
-														if len(text) > 0 {
-
-															varValue = strings.TrimSpace(text)
-
-														}
-
-													}
-
-													envx.Value = varValue
-													ins.Envs = append(ins.Envs, envx)
-
-													Var = append(Var, fmt.Sprintf("%s=%s", vars.Name, varValue))
-												}
-
-												/////////////////////////////Service Management////////////////////
-												for _, servs := range img.Services {
-
-													por := Port{}
-													if servs.Direction == "OUT" {
-														por.Link = true
-													} else {
-														por.Link = false
-													}
-
-													por.Name = fmt.Sprintf("SYS_%s_%s", servs.Category, servs.Type)
-
-													por.Value = fmt.Sprintf("%d", servs.DefaultStartPort)
-
-													ins.Ports = append(ins.Ports, por)
-
-													Var = append(Var, fmt.Sprintf("HOST_%s_%s=%s", servs.Category, servs.Type, servs.DefaultStartPort))
-
-												}
-
-												///////////////////////////////////////////////////////////////////////
-
-												/////////////////////////////////Dependancy Management////////////////////
-
-												for _, depe := range img.Dependants {
-
-													itemFound := false
-
-													for _, serchint := range dep.Instances {
-
-														if depe.Name == serchint.Name {
-
-															itemFound = true
-															Var = append(Var, fmt.Sprintf("SYS_%s_%s=%s.%s", depe.Category, "HOST", depe.Name, dep.InternalDomain))
-
-															for _, envx := range serchint.Envs {
-
-																Var = append(Var, fmt.Sprintf("SYS_%s_%s=%s", depe.Category, envx.Name, envx.Value))
-															}
-
-															for _, portx := range serchint.Ports {
-
-																Var = append(Var, fmt.Sprintf("%s=%s", portx.Name, portx.Value))
-															}
-
-															break
-														}
-
-													}
-
-													if !itemFound {
-
-														fmt.Println("Dependency Instance %s NotFound ----------->", depe.Name)
-
-													}
-
-												}
-
-												/////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-												Var = append(Var, fmt.Sprintf("VIRTUAL_HOST=%s.%s", img.Name, dep.PublicDomain))
-
-												fmt.Println("All VARS ----------->", Var)
-												container.Config = &docker.Config{Image: img.Name, Cmd: cmd, Env: Var}
-
-												fmt.Println(container.Config.Image)
-
-												_, errx := client.CreateContainer(container)
-
-												fmt.Printf("Container --->", errx)
-
-												if errx == nil {
-
-													//fmt.Printf("Container ---> ", cont)
-
-													hostConfig := &docker.HostConfig{}
-
-													errz := client.StartContainer(img.Name, hostConfig)
-													fmt.Printf("Container --->", errz)
-												}
 											}
+
+										}
+
+										container := docker.CreateContainerOptions{}
+										container.Name = img.Name
+										//img.Cmd = "postgres"
+										//cmd := []string{img.Cmd}
+
+										/*
+											a := []int{1,2,3}
+											a = append(a, 4)
+											fmt.Println(a)
+
+										*/
+
+										Var := []string{}
+
+										Var = append(Var, fmt.Sprintf("DEPLOYMENT_ENV=%s", "docker"))
+										Var = append(Var, fmt.Sprintf("HOST_NAME=%s", img.Name))
+										Var = append(Var, fmt.Sprintf("HOST_VERSION=%s", img.Version))
+
+										fmt.Printf("..........................\n", img.SystemVariables)
+
+										for _, vars := range img.SystemVariables {
+
+											envx := ENV{}
+											envx.Name = vars.Name
+											envx.Export = vars.Export
+
+											fmt.Printf("------------>\n", vars.Type)
+
+											varValue := vars.DefaultValue
+
+											if vars.Type == "uservariable" {
+
+												fmt.Printf("Please enter value for ENV %s ", vars.Name)
+												reader := bufio.NewReader(os.Stdin)
+												text, _ := reader.ReadString('\n')
+												fmt.Println(text)
+
+												if len(text) > 0 {
+
+													varValue = strings.TrimSpace(text)
+
+												}
+
+											}
+
+											envx.Value = varValue
+											ins.Envs = append(ins.Envs, envx)
+
+											Var = append(Var, fmt.Sprintf("%s=%s", vars.Name, varValue))
+										}
+
+										/////////////////////////////Service Management////////////////////
+										for _, servs := range img.Services {
+
+											por := Port{}
+											if servs.Direction == "OUT" {
+												por.Link = true
+											} else {
+												por.Link = false
+											}
+
+											por.Name = fmt.Sprintf("SYS_%s_%s", servs.Category, servs.Type)
+
+											por.Value = fmt.Sprintf("%d", servs.DefaultStartPort)
+
+											ins.Ports = append(ins.Ports, por)
+
+											Var = append(Var, fmt.Sprintf("HOST_%s_%s=%d", servs.Category, servs.Type, servs.DefaultStartPort))
+
+										}
+
+										///////////////////////////////////////////////////////////////////////
+
+										/////////////////////////////////Dependancy Management////////////////////
+
+										for _, depe := range img.Dependants {
+
+											itemFound := false
+
+											for _, serchint := range dep.Instances {
+
+												if depe.Name == serchint.Name {
+
+													itemFound = true
+													Var = append(Var, fmt.Sprintf("SYS_%s_%s=%s.%s", depe.Category, "HOST", depe.Name, dep.InternalDomain))
+
+													for _, envx := range serchint.Envs {
+
+														Var = append(Var, fmt.Sprintf("SYS_%s_%s=%s", depe.Category, envx.Name, envx.Value))
+													}
+
+													for _, portx := range serchint.Ports {
+
+														Var = append(Var, fmt.Sprintf("%s=%s", portx.Name, portx.Value))
+													}
+
+													break
+												}
+
+											}
+
+											if !itemFound {
+
+												fmt.Println("Dependency Instance %s NotFound ----------->", depe.Name)
+
+											}
+
+										}
+
+										/////////////////////////////////////////////////////////////////////////////////////////////////////////
+										//Cmd: cmd,
+										Var = append(Var, fmt.Sprintf("VIRTUAL_HOST=%s.%s", img.Name, dep.PublicDomain))
+
+										fmt.Println("All VARS ----------->", Var)
+										container.Config = &docker.Config{Image: img.Name, Env: Var}
+
+										fmt.Println(container.Config.Image)
+
+										_, errx := client.CreateContainer(container)
+
+										fmt.Printf("Container --->", errx)
+
+										if errx == nil {
+
+											//fmt.Printf("Container ---> ", cont)
+
+											hostConfig := &docker.HostConfig{}
+
+											errz := client.StartContainer(img.Name, hostConfig)
+											fmt.Printf("Container --->", errz)
 										}
 
 										////////////////////////Add Instance/////////////////////////////////////////////
