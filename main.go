@@ -467,6 +467,8 @@ func main() {
 											Var = append(Var, fmt.Sprintf("%s=%s", vars.Name, varValue))
 										}
 
+										ports := make(map[docker.Port]struct{})
+
 										/////////////////////////////Service Management////////////////////
 										for _, servs := range img.Services {
 
@@ -484,6 +486,11 @@ func main() {
 											ins.Ports = append(ins.Ports, por)
 
 											Var = append(Var, fmt.Sprintf("HOST_%s_%s=%d", servs.Category, servs.Type, servs.DefaultStartPort))
+
+											portVar := docker.Port(fmt.Sprintf("%d/%s", servs.DefaultStartPort, servs.Protocol))
+
+											var se struct{}
+											ports[portVar] = se
 
 										}
 
