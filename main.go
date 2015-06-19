@@ -263,6 +263,16 @@ func main() {
 					Usage: "docker host port",
 				},
 				cli.StringFlag{
+					Name:  "sysregistryhost",
+					Value: "127.0.0.1",
+					Usage: "registry ip",
+				},
+				cli.StringFlag{
+					Name:  "sysregistryport",
+					Value: "4243",
+					Usage: "registry port",
+				},
+				cli.StringFlag{
 					Name:  "unixsocket",
 					Value: "var/run/docker.sock",
 					Usage: "docker unix socket path",
@@ -279,6 +289,8 @@ func main() {
 				protocol := c.String("protocol")
 				host := c.String("host")
 				port := c.String("port")
+				reghost := c.String("sysregistryhost")
+				regport := c.String("sysregistryport")
 				socket := c.String("unixsocket")
 				template := c.String("template")
 
@@ -297,7 +309,7 @@ func main() {
 
 				/////////--------------------------------------------------------------------------------------------->
 
-				url := fmt.Sprintf("http://127.0.0.1:9093/DVP/API/1.0/SystemRegistry/TemplateByName/%s", template)
+				url := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/TemplateByName/%s", reghost, regport, template)
 
 				var s Result
 
