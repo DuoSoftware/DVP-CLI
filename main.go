@@ -465,9 +465,10 @@ func main() {
 												text, _ := reader.ReadString('\n')
 												fmt.Println(text)
 
-												if len(text) > 0 {
+												enterValue := strings.TrimSpace(text)
+												if len(enterValue) > 0 {
 
-													varValue = strings.TrimSpace(text)
+													varValue = enterValue
 
 												}
 
