@@ -14,108 +14,100 @@ import (
 
 ///////////////////////////swarm cluster /////////////////////////////////////////
 
-type SwarmInstanceOut struct{
-	
-	Name		string
-    ParentApp	string
-    UUID		string
-    Code		int
-    Company		int
-    Tenant		int
-    Class		string
-    Type		string
-    Category	string
-	
+type SwarmInstanceOut struct {
+	Name      string
+	ParentApp string
+	UUID      string
+	Code      string
+	Company   int
+	Tenant    int
+	Class     string
+	Type      string
+	Category  string
 }
 
-type SwarmInstanceIn struct{
-	
-	Name		string
-    ParentApp	string
-    UUID		string
-    Code		int
-    Company		int
-    Tenant		int
-    Class		string
-    Type		string
-    Category	string
-	NodeName	string
-	
+type SwarmInstanceIn struct {
+	SwarmNodeUuid string
+	Name          string
+	ParentApp     string
+	UUID          string
+	Code          string
+	Company       int
+	Tenant        int
+	Class         string
+	Type          string
+	Category      string
+	NodeName      string
 }
 
-
-
-type SwarmNodeOut struct{
-	
-	Name			string
-    Status 			bool
-    Code			string
-    Company 		int
-    Tenant			int
-    Class			string
-    Type			string
-    Category		string
-    MainIP			string
-    Domain			string
-    HostDomain		string
-	SwarmInstances 	[]SwarmInstanceOut
-	
+type SwarmNodeOut struct {
+	UniqueId       string
+	Name           string
+	Status         bool
+	Code           string
+	Company        int
+	Tenant         int
+	Class          string
+	Type           string
+	Category       string
+	MainIP         string
+	Domain         string
+	HostDomain     string
+	SwarmInstances []SwarmInstanceOut
 }
 
-
-type SwarmNodeIn struct{
-	
-	Name			string
-    Status 			bool
-    Code			string
-    Company 		int
-    Tenant			int
-    Class			string
-    Type			string
-    Category		string
-    MainIP			string
-    Domain			string
-    HostDomain		string
-	ClusterToken	string
-	
+type SwarmNodeIn struct {
+	Name         string
+	Status       bool
+	Code         string
+	Company      int
+	Tenant       int
+	Class        string
+	Type         string
+	Category     string
+	MainIP       string
+	Domain       string
+	HostDomain   string
+	ClusterToken string
 }
 
-
-
-
-type SwarmClusterOut struct{
-	
-	Name		string
-    Token 		string
-    Code		string
-    Company		int
-    Tenant		int
-    Class		string
-    Type		string
-    Category 	string
-    LBDomain  	string
-	LBIP		string
-	SwarmNodes 	[]SwarmNodeOut
-	
-	
-	
+type SwarmClusterOut struct {
+	Name       string
+	Token      string
+	Code       string
+	Company    int
+	Tenant     int
+	Class      string
+	Type       string
+	Category   string
+	LBDomain   string
+	LBIP       string
+	SwarmNodes []SwarmNodeOut
 }
 
+type SwarmClusterIn struct {
+	Name     string
+	Token    string
+	Code     string
+	Company  int
+	Tenant   int
+	Class    string
+	Type     string
+	Category string
+	LBDomain string
+}
 
+type ClusterResult struct {
+	Exception     string
+	CustomMessage string
+	IsSuccess     bool
+	Result        SwarmClusterOut
+}
 
-type SwarmClusterIn struct{
-	
-	Name		string
-    Token 		string
-    Code		string
-    Company		int
-    Tenant		int
-    Class		string
-    Type		string
-    Category 	string
-    LBDomain  	string	
-	
-	
+type BasicResult struct {
+	Exception     string
+	CustomMessage string
+	IsSuccess     bool
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -763,6 +755,7 @@ func main() {
 				regport := c.String("sysregistryport")
 				socket := c.String("unixsocket")
 				template := c.String("template")
+				dockerClusterToken := c.String("token")
 
 				fmt.Printf("Image ----------------> %s", c)
 
@@ -780,19 +773,28 @@ func main() {
 				/////////--------------------------------------------------------------------------------------------->
 
 				url := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/TemplateByName/%s", reghost, regport, template)
+				cUrl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/ClusterByToken/%s", reghost, regport, dockerClusterToken)
 
 				var s Result
+				var cs ClusterResult
 
 				r := restclient.RequestResponse{
 					Url:    url,
 					Method: "GET",
 					Result: &s,
 				}
+
+				cr := restclient.RequestResponse{
+					Url:    cUrl,
+					Method: "GET",
+					Result: &cs,
+				}
 				status, err := restclient.Do(&r)
+				cStatus, err := restclient.Do(&cr)
 				if err != nil {
 					//panic(err)
 				}
-				if status == 200 {
+				if status == 200 && cStatus == 200 {
 
 					//json.Unmarshal([]byte(r.RawText), &s)
 
@@ -800,7 +802,11 @@ func main() {
 
 					fmt.Println("Template Data  -->", s)
 
-					if s.IsSuccess == true {
+					fmt.Println("Cluster Data  -->", cr.RawText)
+
+					fmt.Println("Cluster Data  -->", cs)
+
+					if s.IsSuccess == true && cs.IsSuccess == true {
 
 						if s.Result != nil {
 
@@ -813,17 +819,17 @@ func main() {
 								fmt.Println(text)
 								t := strings.TrimSpace(text)
 
-								fmt.Printf("Template found ready to install --> Enter internal domain name\n")
+								//fmt.Printf("Template found ready to install --> Enter internal domain name\n")// cluster domain
 
-								texxt, _ := reader.ReadString('\n')
-								fmt.Println(texxt)
-								d := strings.TrimSpace(texxt)
+								//texxt, _ := reader.ReadString('\n')
+								//fmt.Println(texxt)
+								d := strings.TrimSpace(cs.Result.LBDomain)
 
-								fmt.Printf("Enter public domain name\n")
+								//fmt.Printf("Enter public domain name\n") //
 
-								texyt, _ := reader.ReadString('\n')
-								fmt.Println(texyt)
-								p := strings.TrimSpace(texyt)
+								//texyt, _ := reader.ReadString('\n')
+								//fmt.Println(texyt)
+								p := strings.TrimSpace(cs.Result.LBDomain)
 
 								dep := Deployment{Name: t, InternalDomain: d}
 								dep.Class = "USER"
@@ -1029,6 +1035,52 @@ func main() {
 										fmt.Printf("Container --->", errx, containerInstance)
 
 										if errx == nil {
+											//--------------------------------------------------------------------------------------------
+											var hdomain string
+											for _, snode := range cs.Result.SwarmNodes {
+												if containerInstance.Node.ID == snode.UniqueId {
+													hdomain = snode.Domain
+												}
+											}
+
+											iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Instance", reghost, regport)
+											hUrl := fmt.Sprintf("http://%s:%s/frontends?host=%s&backends=%s", cs.Result.LBIP, "5000", cs.Result.LBDomain, hdomain)
+
+											idata := SwarmInstanceIn{}
+											idata.Class = cs.Result.Class
+											idata.Type = cs.Result.Type
+											idata.Category = cs.Result.Category
+											idata.Company = cs.Result.Company
+											idata.Tenant = cs.Result.Tenant
+											idata.Code = containerInstance.Name
+											idata.NodeName = containerInstance.Node.Name
+											idata.ParentApp = img.Name
+											idata.SwarmNodeUuid = containerInstance.Node.ID
+											idata.UUID = containerInstance.ID
+											idata.Name = containerInstance.Name
+
+											var ibs BasicResult
+											var hbs string
+
+											ir := restclient.RequestResponse{
+												Url:    iurl,
+												Method: "POST",
+												Result: &ibs,
+											}
+
+											hr := restclient.RequestResponse{
+												Url:    hUrl,
+												Method: "POST",
+												Result: &hbs,
+											}
+											iStatus, err := restclient.Do(&ir)
+											hStatus, err := restclient.Do(&hr)
+											if err != nil {
+												//panic(err)
+											}
+											fmt.Println(iStatus, ibs.CustomMessage)
+											fmt.Println(hStatus, hbs)
+											//------------------------------------------------------------------------------------
 
 											//fmt.Printf("Container ---> ", cont)
 
@@ -1063,12 +1115,8 @@ func main() {
 				}
 			},
 		},
-		
-		
+
 		/////////////////////////////////////////////////////////////////////////////////////////
-		
-		
-		
 
 		{
 
