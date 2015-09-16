@@ -14,108 +14,85 @@ import (
 
 ///////////////////////////swarm cluster /////////////////////////////////////////
 
-type SwarmInstanceOut struct{
-	
-	Name		string
-    ParentApp	string
-    UUID		string
-    Code		int
-    Company		int
-    Tenant		int
-    Class		string
-    Type		string
-    Category	string
-	
+type SwarmInstanceOut struct {
+	Name      string
+	ParentApp string
+	UUID      string
+	Code      int
+	Company   int
+	Tenant    int
+	Class     string
+	Type      string
+	Category  string
 }
 
-type SwarmInstanceIn struct{
-	
-	Name		string
-    ParentApp	string
-    UUID		string
-    Code		int
-    Company		int
-    Tenant		int
-    Class		string
-    Type		string
-    Category	string
-	NodeName	string
-	
+type SwarmInstanceIn struct {
+	Name      string
+	ParentApp string
+	UUID      string
+	Code      int
+	Company   int
+	Tenant    int
+	Class     string
+	Type      string
+	Category  string
+	NodeName  string
 }
 
-
-
-type SwarmNodeOut struct{
-	
-	Name			string
-    Status 			bool
-    Code			string
-    Company 		int
-    Tenant			int
-    Class			string
-    Type			string
-    Category		string
-    MainIP			string
-    Domain			string
-    HostDomain		string
-	SwarmInstances 	[]SwarmInstanceOut
-	
+type SwarmNodeOut struct {
+	Name           string
+	Status         bool
+	Code           string
+	Company        int
+	Tenant         int
+	Class          string
+	Type           string
+	Category       string
+	MainIP         string
+	Domain         string
+	HostDomain     string
+	SwarmInstances []SwarmInstanceOut
 }
 
-
-type SwarmNodeIn struct{
-	
-	Name			string
-    Status 			bool
-    Code			string
-    Company 		int
-    Tenant			int
-    Class			string
-    Type			string
-    Category		string
-    MainIP			string
-    Domain			string
-    HostDomain		string
-	ClusterToken	string
-	
+type SwarmNodeIn struct {
+	Name         string
+	Status       bool
+	Code         string
+	Company      int
+	Tenant       int
+	Class        string
+	Type         string
+	Category     string
+	MainIP       string
+	Domain       string
+	HostDomain   string
+	ClusterToken string
 }
 
-
-
-
-type SwarmClusterOut struct{
-	
-	Name		string
-    Token 		string
-    Code		string
-    Company		int
-    Tenant		int
-    Class		string
-    Type		string
-    Category 	string
-    LBDomain  	string
-	LBIP		string
-	SwarmNodes 	[]SwarmNodeOut
-	
-	
-	
+type SwarmClusterOut struct {
+	Name       string
+	Token      string
+	Code       string
+	Company    int
+	Tenant     int
+	Class      string
+	Type       string
+	Category   string
+	LBDomain   string
+	LBIP       string
+	SwarmNodes []SwarmNodeOut
 }
 
-
-
-type SwarmClusterIn struct{
-	
-	Name		string
-    Token 		string
-    Code		string
-    Company		int
-    Tenant		int
-    Class		string
-    Type		string
-    Category 	string
-    LBDomain  	string	
-	
-	
+type SwarmClusterIn struct {
+	Name     string
+	Token    string
+	Code     string
+	Company  int
+	Tenant   int
+	Class    string
+	Type     string
+	Category string
+	LBDomain string
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -1063,12 +1040,8 @@ func main() {
 				}
 			},
 		},
-		
-		
+
 		/////////////////////////////////////////////////////////////////////////////////////////
-		
-		
-		
 
 		{
 
