@@ -834,7 +834,7 @@ func main() {
 								dep := Deployment{Name: t, InternalDomain: d}
 								dep.Class = "USER"
 								dep.Type = "DOCKER"
-								dep.Category = "SINLEHOST"
+								dep.Category = "CLUSTER"
 								dep.Template = temp.Name
 								dep.InternalDomain = d
 								dep.PublicIP = host
