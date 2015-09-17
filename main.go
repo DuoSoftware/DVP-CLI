@@ -41,19 +41,19 @@ type SwarmInstanceIn struct {
 }
 
 type SwarmNodeOut struct {
-	UniqueId       string
-	Name           string
-	Status         bool
-	Code           string
-	Company        int
-	Tenant         int
-	Class          string
-	Type           string
-	Category       string
-	MainIP         string
-	Domain         string
-	HostDomain     string
-	SwarmInstances []SwarmInstanceOut
+	UniqueId      string
+	Name          string
+	Status        bool
+	Code          string
+	Company       int
+	Tenant        int
+	Class         string
+	Type          string
+	Category      string
+	MainIP        string
+	Domain        string
+	HostDomain    string
+	SwarmInstance []SwarmInstanceOut
 }
 
 type SwarmNodeIn struct {
@@ -72,23 +72,23 @@ type SwarmNodeIn struct {
 }
 
 type SwarmClusterOut struct {
-	Name       string
-	Token      string
-	Code       string
-	Company    int
-	Tenant     int
-	Class      string
-	Type       string
-	Category   string
-	LBDomain   string
-	LBIP       string
-	SwarmNodes []SwarmNodeOut
+	Name      string
+	Token     string
+	Code      int
+	Company   int
+	Tenant    int
+	Class     string
+	Type      string
+	Category  string
+	LBDomain  string
+	LBIP      string
+	SwarmNode []SwarmNodeOut
 }
 
 type SwarmClusterIn struct {
 	Name     string
 	Token    string
-	Code     string
+	Code     int
 	Company  int
 	Tenant   int
 	Class    string
@@ -469,18 +469,19 @@ func main() {
 								dep.PublicDomain = p
 
 								sort.Sort(temp)
-
+								fmt.Println("temp.TemplateImage", len(temp.TemplateImage), "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 								for _, img := range temp.TemplateImage {
 									fmt.Println(img.CSDB_TemplateImage.Type)
 									isInstall := false
 
 									if img.CSDB_TemplateImage.Type == "Mandetory" {
 										isInstall = true
+										fmt.Println("IsInstall:", isInstall)
 
 									} else if img.CSDB_TemplateImage.Type == "Optional" {
 
-										fmt.Printf("%s %s", img.Name, img.Description)
-										fmt.Printf("Above Service is optional do you want to install it?")
+										fmt.Println("%s %s", img.Name, img.Description)
+										fmt.Println("Above Service is optional do you want to install it?")
 
 										reader := bufio.NewReader(os.Stdin)
 										text, _ := reader.ReadString('\n')
@@ -490,16 +491,16 @@ func main() {
 										if t == "y" {
 
 											isInstall = true
-											fmt.Printf("Install is true")
+											fmt.Println("Install is true")
 
 										} else {
-											fmt.Printf("Install is false")
+											fmt.Println("Install is false")
 										}
 
 									}
 
 									if isInstall {
-										fmt.Println(img.Class)
+										fmt.Println("Start Install: ", img.Class)
 
 										ins := Instance{Name: img.Name}
 										ins.Class = img.Class
@@ -513,7 +514,7 @@ func main() {
 											pullImage := docker.PullImageOptions{Repository: img.DockerUrl, Tag: "latest"}
 											authConf := docker.AuthConfiguration{}
 											erry := client.PullImage(pullImage, authConf)
-											fmt.Printf("pull --->", erry)
+											fmt.Println("pull --->", erry)
 											if erry == nil {
 
 											}
@@ -523,14 +524,14 @@ func main() {
 											buildOption := docker.BuildImageOptions{Name: img.Name, Dockerfile: "Dockerfile", SuppressOutput: true, OutputStream: os.Stdout, Remote: img.SourceUrl}
 
 											erry := client.BuildImage(buildOption)
-											fmt.Printf("BuildContainer --->", err)
+											fmt.Println("BuildContainer --->", err)
 
 											if erry == nil {
 
 											}
 
 										}
-
+										fmt.Println("Start docker.CreateContainerOptions %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 										container := docker.CreateContainerOptions{}
 										container.Name = img.Name
 										//img.Cmd = "postgres"
@@ -549,7 +550,7 @@ func main() {
 										Var = append(Var, fmt.Sprintf("HOST_NAME=%s", img.Name))
 										Var = append(Var, fmt.Sprintf("HOST_VERSION=%s", img.Version))
 
-										fmt.Printf("..........................\n", img.SystemVariables)
+										fmt.Println("..........................\n", img.SystemVariables)
 
 										for _, vars := range img.SystemVariables {
 
@@ -557,7 +558,7 @@ func main() {
 											envx.Name = vars.Name
 											envx.Export = vars.Export
 
-											fmt.Printf("------------>\n", vars.Type)
+											//fmt.Printf("------------>\n", vars.Type)
 
 											varValue := vars.DefaultValue
 
@@ -585,6 +586,7 @@ func main() {
 
 										ports := make(map[docker.Port]struct{})
 
+										fmt.Println("Start Service Management %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 										/////////////////////////////Service Management////////////////////
 										for _, servs := range img.Services {
 
@@ -611,7 +613,7 @@ func main() {
 										}
 
 										///////////////////////////////////////////////////////////////////////
-
+										fmt.Println("Start Dependancy Management %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 										/////////////////////////////////Dependancy Management////////////////////
 
 										for _, depe := range img.Dependants {
@@ -647,7 +649,7 @@ func main() {
 											}
 
 										}
-
+										fmt.Println("End Session Management %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 										/////////////////////////////////////////////////////////////////////////////////////////////////////////
 										//Cmd: cmd,
 										Var = append(Var, fmt.Sprintf("VIRTUAL_HOST=%s.%s", img.Name, dep.PublicDomain))
@@ -659,7 +661,7 @@ func main() {
 
 										containerInstance, errx := client.CreateContainer(container)
 
-										fmt.Printf("Container --->", errx, containerInstance)
+										fmt.Println("Container --->", errx, containerInstance)
 
 										if errx == nil {
 
@@ -767,6 +769,8 @@ func main() {
 
 				}
 
+				fmt.Println("Endpoint ------------------------------------> ", endpoint)
+
 				client, _ := docker.NewClient(endpoint)
 				//client.ListContainers(docker.ListContainersOptions{All: false})
 
@@ -823,12 +827,13 @@ func main() {
 
 								//texxt, _ := reader.ReadString('\n')
 								//fmt.Println(texxt)
+								fmt.Println(cs.Result.LBDomain)
 								d := strings.TrimSpace(cs.Result.LBDomain)
 
 								//fmt.Printf("Enter public domain name\n") //
 
 								//texyt, _ := reader.ReadString('\n')
-								//fmt.Println(texyt)
+								fmt.Println(cs.Result.LBDomain)
 								p := strings.TrimSpace(cs.Result.LBDomain)
 
 								dep := Deployment{Name: t, InternalDomain: d}
@@ -842,6 +847,8 @@ func main() {
 								dep.PublicDomain = p
 
 								sort.Sort(temp)
+
+								fmt.Printf("Images : %v", temp.TemplateImage)
 
 								for _, img := range temp.TemplateImage {
 									fmt.Println(img.CSDB_TemplateImage.Type)
@@ -1029,23 +1036,36 @@ func main() {
 										container.Config = &docker.Config{Image: img.Name, Env: Var}
 
 										fmt.Println(container.Config.Image)
+										fmt.Println("Start Create Container%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 
-										containerInstance, errx := client.CreateContainer(container)
+										containerInstanceId, errx := client.CreateContainer(container)
+										containerInstance, errx := client.InspectContainer(containerInstanceId.ID)
 
-										fmt.Printf("Container --->", errx, containerInstance)
+										fmt.Println("Container ---> %v", containerInstance)
+										fmt.Println("End Create Container%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 
 										if errx == nil {
+											fmt.Println("Error not found%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+
 											//--------------------------------------------------------------------------------------------
 											var hdomain string
-											for _, snode := range cs.Result.SwarmNodes {
+											fmt.Println("Start find hdomain", len(cs.Result.SwarmNode))
+											fmt.Println("%%%%%%%%%%%% SwarmNode %%%%%%%%%%%%%%%%%%%%%")
+											fmt.Println("%v", cs.Result.SwarmNode)
+											fmt.Println("%%%%%%%%%%%% containerInstance %%%%%%%%%%%%%%%%%%%%%")
+											fmt.Println("%v", containerInstance.Node)
+											for _, snode := range cs.Result.SwarmNode {
+												fmt.Println("ci node id: ", containerInstance.Node.ID)
+												fmt.Println("snode.UniqueId: ", snode.UniqueId)
 												if containerInstance.Node.ID == snode.UniqueId {
 													hdomain = snode.Domain
 												}
 											}
-
+											fmt.Println("End find hdomain", hdomain)
 											iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Instance", reghost, regport)
 											hUrl := fmt.Sprintf("http://%s:%s/frontends?host=%s&backends=%s", cs.Result.LBIP, "5000", cs.Result.LBDomain, hdomain)
 
+											fmt.Println("Iurl ", iurl, hUrl)
 											idata := SwarmInstanceIn{}
 											idata.Class = cs.Result.Class
 											idata.Type = cs.Result.Type
@@ -1065,6 +1085,7 @@ func main() {
 											ir := restclient.RequestResponse{
 												Url:    iurl,
 												Method: "POST",
+												Data:   &idata,
 												Result: &ibs,
 											}
 
