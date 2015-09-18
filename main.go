@@ -876,16 +876,9 @@ func main() {
 											fmt.Printf("Install is false")
 										}
 
-									}else ifimg.CSDB_TemplateImage.Type == "Backing" {
-										
-										
-										
-										
-										
-										
-										
-										
-										}
+									} else if img.CSDB_TemplateImage.Type == "Backing" {
+
+									}
 
 									if isInstall {
 										fmt.Println(img.Class)
@@ -922,7 +915,6 @@ func main() {
 
 										container := docker.CreateContainerOptions{}
 										container.Name = img.Name
-										
 
 										Var := []string{}
 
