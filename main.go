@@ -1039,7 +1039,18 @@ func main() {
 										fmt.Println("Start Create Container%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 
 										containerInstanceId, errx := client.CreateContainer(container)
+
+										if errx != nil {
+
+											fmt.Println("CreateContainer %v", errx)
+										}
+
 										containerInstance, errx := client.InspectContainer(containerInstanceId.ID)
+
+										if errx != nil {
+
+											fmt.Println("CreateContainer %v", errx)
+										}
 
 										fmt.Println("Container ---> %v", containerInstance)
 										fmt.Println("End Create Container%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
@@ -1063,7 +1074,7 @@ func main() {
 											}
 											fmt.Println("End find hdomain", hdomain)
 											iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Instance", reghost, regport)
-											hUrl := fmt.Sprintf("http://%s:%s/frontends?host=%s&backends=%s", cs.Result.LBIP, "5000", cs.Result.LBDomain, hdomain)
+											hUrl := fmt.Sprintf("http://%s:%s/frontends?host=%s.%s&backends=%s.%s", cs.Result.LBIP, "5000", img.Name, cs.Result.LBDomain, img.Name, hdomain)
 
 											fmt.Println("Iurl ", iurl, hUrl)
 											idata := SwarmInstanceIn{}
