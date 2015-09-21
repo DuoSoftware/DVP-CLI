@@ -188,6 +188,7 @@ type Port struct {
 }
 
 type Instance struct {
+	Host     string
 	Name     string
 	Class    string
 	Type     string
@@ -878,6 +879,91 @@ func main() {
 
 									} else if img.CSDB_TemplateImage.Type == "Backing" {
 
+										isInstall = false
+
+										fmt.Println(img.Class)
+
+										ins := Instance{Name: img.Name}
+										ins.Class = img.Class
+										ins.Type = img.Type
+										ins.Category = img.Category
+
+										fmt.Printf("Please enter host name : ")
+										reader := bufio.NewReader(os.Stdin)
+										text, _ := reader.ReadString('\n')
+										fmt.Println(text)
+
+										textHost := strings.TrimSpace(text)
+
+										ins.Host = textHost
+
+										///////////////////////////////////////////////
+										Var := []string{}
+
+										Var = append(Var, fmt.Sprintf("DEPLOYMENT_ENV=%s", "docker"))
+										Var = append(Var, fmt.Sprintf("HOST_NAME=%s", img.Name))
+										Var = append(Var, fmt.Sprintf("HOST_VERSION=%s", img.Version))
+
+										fmt.Printf("..........................\n", img.SystemVariables)
+
+										for _, vars := range img.SystemVariables {
+
+											envx := ENV{}
+											envx.Name = vars.Name
+											envx.Export = vars.Export
+
+											fmt.Printf("------------>\n", vars.Type)
+
+											varValue := vars.DefaultValue
+
+											if vars.Type == "uservariable" {
+
+												fmt.Printf("Please enter value for ENV %s ", vars.Name)
+												reader := bufio.NewReader(os.Stdin)
+												text, _ := reader.ReadString('\n')
+												fmt.Println(text)
+
+												enterValue := strings.TrimSpace(text)
+												if len(enterValue) > 0 {
+
+													varValue = enterValue
+
+												}
+
+											}
+
+											envx.Value = varValue
+											ins.Envs = append(ins.Envs, envx)
+
+											Var = append(Var, fmt.Sprintf("%s=%s", vars.Name, varValue))
+										}
+
+										/////////////////////////////Service Management////////////////////
+										for _, servs := range img.Services {
+
+											por := Port{}
+											if servs.Direction == "OUT" {
+												por.Link = true
+											} else {
+												por.Link = false
+											}
+
+											por.Name = fmt.Sprintf("SYS_%s_%s", servs.Category, servs.Type)
+
+											por.Value = fmt.Sprintf("%d", servs.DefaultStartPort)
+
+											ins.Ports = append(ins.Ports, por)
+
+											Var = append(Var, fmt.Sprintf("HOST_%s_%s=%d", servs.Category, servs.Type, servs.DefaultStartPort))
+
+										}
+
+										///////////////////////////////////////////////////////////////////////
+
+										//Var = append(Var, fmt.Sprintf("VIRTUAL_HOST=%s.%s", img.Name, dep.PublicDomain))
+
+										dep.Instances = append(dep.Instances, ins)
+
 									}
 
 									if isInstall {
@@ -996,7 +1082,15 @@ func main() {
 												if depe.Name == serchint.Name {
 
 													itemFound = true
-													Var = append(Var, fmt.Sprintf("SYS_%s_%s=%s.%s", depe.Category, "HOST", depe.Name, dep.InternalDomain))
+
+													if serchint.Host != "" {
+
+														Var = append(Var, fmt.Sprintf("SYS_%s_%s=%s", depe.Category, "HOST", serchint.Host))
+													} else {
+
+														Var = append(Var, fmt.Sprintf("SYS_%s_%s=%s.%s", depe.Category, "HOST", depe.Name, dep.InternalDomain))
+													}
+													//Var = append(Var, fmt.Sprintf("SYS_%s_%s=%s.%s", depe.Category, "HOST", depe.Name, dep.InternalDomain))
 
 													for _, envx := range serchint.Envs {
 
@@ -1023,7 +1117,7 @@ func main() {
 
 										/////////////////////////////////////////////////////////////////////////////////////////////////////////
 										//Cmd: cmd,
-										Var = append(Var, fmt.Sprintf("VIRTUAL_HOST=%s.%s", img.Name, dep.PublicDomain))
+										Var = append(Var, fmt.Sprintf("VIRTUAL_HOST=%s.*", img.Name))
 
 										fmt.Println("All VARS ----------->", Var)
 										container.Config = &docker.Config{Image: img.Name, Env: Var}
@@ -1067,7 +1161,7 @@ func main() {
 											}
 											fmt.Println("End find hdomain", hdomain)
 											iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Instance", reghost, regport)
-											hUrl := fmt.Sprintf("http://%s:%s/frontends?host=%s.%s&backends=%s.%s", cs.Result.LBIP, "5000", img.Name, cs.Result.LBDomain, img.Name, hdomain)
+											hUrl := fmt.Sprintf("http://%s:%s/frontends?host=%s.%s&backends=http://%s.%s", cs.Result.LBIP, "5000", img.Name, cs.Result.LBDomain, img.Name, hdomain)
 
 											fmt.Println("Iurl ", iurl, hUrl)
 											idata := SwarmInstanceIn{}
@@ -1110,6 +1204,7 @@ func main() {
 											//fmt.Printf("Container ---> ", cont)
 
 											hostConfig := &docker.HostConfig{}
+											hostConfig.PublishAllPorts = true
 
 											errz := client.StartContainer(img.Name, hostConfig)
 											fmt.Printf("Container --->", errz)
