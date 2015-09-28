@@ -7,6 +7,7 @@ import (
 	"github.com/codegangsta/cli"
 	"github.com/fsouza/go-dockerclient"
 	"github.com/jmcvetta/restclient"
+	"github.com/satori/go.uuid"
 	"os"
 	"sort"
 	"strings"
@@ -19,6 +20,8 @@ type SwarmInstanceOut struct {
 	ParentApp string
 	UUID      string
 	Code      string
+	FrontEnd  string
+	BackEnd   string
 	Company   int
 	Tenant    int
 	Class     string
@@ -32,12 +35,16 @@ type SwarmInstanceIn struct {
 	ParentApp     string
 	UUID          string
 	Code          string
+	FrontEnd      string
+	BackEnd       string
 	Company       int
 	Tenant        int
 	Class         string
 	Type          string
 	Category      string
 	NodeName      string
+	Envs          []ENV
+	Ports         []Port
 }
 
 type SwarmNodeOut struct {
@@ -108,6 +115,13 @@ type BasicResult struct {
 	Exception     string
 	CustomMessage string
 	IsSuccess     bool
+}
+
+type InstanceResult struct {
+	Exception     string
+	CustomMessage string
+	IsSuccess     bool
+	Result        SwarmInstanceOut
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -195,6 +209,7 @@ type Instance struct {
 	Category string
 	UUID     string
 	Image    string
+	State    string
 	Ports    []Port
 	Envs     []ENV
 }
@@ -771,12 +786,9 @@ func main() {
 				}
 
 				fmt.Println("Endpoint ------------------------------------> ", endpoint)
-
 				client, _ := docker.NewClient(endpoint)
 				//client.ListContainers(docker.ListContainersOptions{All: false})
-
 				/////////--------------------------------------------------------------------------------------------->
-
 				url := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/TemplateByName/%s", reghost, regport, template)
 				cUrl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/ClusterByToken/%s", reghost, regport, dockerClusterToken)
 
@@ -845,6 +857,10 @@ func main() {
 								dep.InternalDomain = d
 								dep.PublicIP = host
 								dep.PublicDomain = fmt.Sprintf("%s.xip.io", host)
+
+								u1 := uuid.NewV4()
+								dep.UUID = u1.String()
+
 								dep.PublicDomain = p
 
 								sort.Sort(temp)
@@ -970,6 +986,8 @@ func main() {
 										fmt.Println(img.Class)
 
 										ins := Instance{Name: img.Name}
+										idata := SwarmInstanceIn{}
+
 										ins.Class = img.Class
 										ins.Type = img.Type
 										ins.Category = img.Category
@@ -1038,6 +1056,7 @@ func main() {
 
 											envx.Value = varValue
 											ins.Envs = append(ins.Envs, envx)
+											idata.Envs = append(idata.Envs, envx)
 
 											Var = append(Var, fmt.Sprintf("%s=%s", vars.Name, varValue))
 										}
@@ -1059,6 +1078,7 @@ func main() {
 											por.Value = fmt.Sprintf("%d", servs.DefaultStartPort)
 
 											ins.Ports = append(ins.Ports, por)
+											idata.Ports = append(idata.Ports, por)
 
 											Var = append(Var, fmt.Sprintf("HOST_%s_%s=%d", servs.Category, servs.Type, servs.DefaultStartPort))
 
@@ -1164,7 +1184,7 @@ func main() {
 											hUrl := fmt.Sprintf("http://%s:%s/frontends?host=%s.%s&backends=http://%s.%s", cs.Result.LBIP, "5000", img.Name, cs.Result.LBDomain, img.Name, hdomain)
 
 											fmt.Println("Iurl ", iurl, hUrl)
-											idata := SwarmInstanceIn{}
+
 											idata.Class = cs.Result.Class
 											idata.Type = cs.Result.Type
 											idata.Category = cs.Result.Category
@@ -1175,7 +1195,12 @@ func main() {
 											idata.ParentApp = img.Name
 											idata.SwarmNodeUuid = containerInstance.Node.ID
 											idata.UUID = containerInstance.ID
+											ins.UUID = containerInstance.ID
+											ins.State = containerInstance.State.String()
+											ins.Image = img.Name
 											idata.Name = containerInstance.Name
+											idata.FrontEnd = fmt.Sprintf("%s.%s", img.Name, cs.Result.LBDomain)
+											idata.BackEnd = fmt.Sprintf("http://%s.%s", img.Name, hdomain)
 
 											var ibs BasicResult
 											var hbs string
@@ -1228,6 +1253,24 @@ func main() {
 
 									f.Write(b)
 									f.Close()
+
+									iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/", reghost, regport)
+									var ibs BasicResult
+
+									ir := restclient.RequestResponse{
+										Url:    iurl,
+										Method: "POST",
+										Data:   &dep,
+										Result: &ibs,
+									}
+
+									iStatus, err := restclient.Do(&ir)
+
+									if err != nil {
+										//panic(err)
+									}
+									fmt.Println(iStatus, ibs)
+
 								}
 							}
 						}
@@ -1237,7 +1280,178 @@ func main() {
 		},
 
 		/////////////////////////////////////////////////////////////////////////////////////////
+		{
+			Name:  "monitor",
+			Usage: "monitor helth of swarn cluster",
 
+			Flags: []cli.Flag{
+
+				cli.StringFlag{
+					Name:  "protocol",
+					Value: "http",
+					Usage: "docker remote api protocol to connect",
+				},
+				cli.StringFlag{
+					Name:  "host",
+					Value: "127.0.0.1",
+					Usage: "docker host ip",
+				},
+				cli.StringFlag{
+					Name:  "port",
+					Value: "4243",
+					Usage: "docker host port",
+				},
+				cli.StringFlag{
+					Name:  "unixsocket",
+					Value: "var/run/docker.sock",
+					Usage: "docker unix socket path",
+				},
+				cli.StringFlag{
+					Name:  "sysregistryhost",
+					Value: "127.0.0.1",
+					Usage: "registry ip",
+				},
+				cli.StringFlag{
+					Name:  "sysregistryport",
+					Value: "4243",
+					Usage: "registry port",
+				},
+				cli.StringFlag{
+					Name:  "lbapihost",
+					Value: "127.0.0.1",
+					Usage: "Hipache API host",
+				},
+			},
+
+			Action: func(c *cli.Context) {
+
+				protocol := c.String("protocol")
+				host := c.String("host")
+				port := c.String("port")
+				socket := c.String("unixsocket")
+				reghost := c.String("sysregistryhost")
+				regport := c.String("sysregistryport")
+				apihost := c.String("lbapihost")
+
+				//fmt.Printf("Image ----------------> %s", c)
+
+				endpoint := fmt.Sprintf("http://%s:%s", host, port)
+
+				if protocol == "unix" {
+
+					endpoint = fmt.Sprintf("unix:///%s", socket)
+
+				}
+
+				client, _ := docker.NewClient(endpoint)
+				listener := make(chan *docker.APIEvents)
+
+				client.AddEventListener(listener)
+
+				err := client.AddEventListener(listener)
+				if err != nil {
+					fmt.Errorf("Failed to add event listener: %s", err)
+				}
+
+				//timeout := time.After(1 * time.Second)
+				//var count int
+
+				for {
+					select {
+					case msg := <-listener:
+
+						//busybox node:DUOVOICEAPP2 , stop , a3c37ba2fbfae960825c978bc44b3a6928d0d428fa70fff6a046c97ee228973f , 1443417873
+						fmt.Printf("Received: from - %s, Status-%s, ID-%s, Time-%s\n", msg.From, msg.Status, msg.ID, msg.Time)
+
+						///get instance details///////////////////////////////////////////////////////////////////////////////////////////
+
+						url := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Node/%s", reghost, regport, msg.ID)
+
+						var s InstanceResult
+
+						r := restclient.RequestResponse{
+							Url:    url,
+							Method: "GET",
+							Result: &s,
+						}
+
+						status, err := restclient.Do(&r)
+
+						if err != nil {
+							//panic(err)
+						}
+						if status == 200 {
+
+							switch msg.Status {
+
+							case "create":
+
+							case "start":
+
+							case "kill":
+
+							case "die":
+
+							case "untag": //image
+
+							case "delete": //image
+
+							case "destroy": //container
+
+								iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/Node/%s/Instance/%s", reghost, regport, s.Result.UUID, msg.ID)
+
+								var ibs BasicResult
+
+								ir := restclient.RequestResponse{
+									Url:    iurl,
+									Method: "DELETE",
+									Result: &ibs,
+								}
+
+								iStatus, err := restclient.Do(&ir)
+
+								if err != nil {
+									//panic(err)
+								}
+
+								fmt.Println(iStatus)
+
+							case "stop":
+
+								iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/Node/%s/Instance/%s/Active/%s", reghost, regport, s.Result.UUID, msg.ID, msg.Status)
+								hUrl := fmt.Sprintf("http://%s:%s/frontends/%s/backend?backend=%s", apihost, "5000", s.Result.FrontEnd, s.Result.BackEnd)
+
+								var ibs BasicResult
+								var hbs string
+
+								ir := restclient.RequestResponse{
+									Url:    iurl,
+									Method: "PUT",
+									Result: &ibs,
+								}
+
+								hr := restclient.RequestResponse{
+									Url:    hUrl,
+									Method: "DELETE",
+									Result: &hbs,
+								}
+								iStatus, err := restclient.Do(&ir)
+								hStatus, err := restclient.Do(&hr)
+								if err != nil {
+									//panic(err)
+								}
+
+								fmt.Println(iStatus, hStatus)
+							default:
+
+							}
+						}
+					}
+				}
+			},
+		},
+
+		///////////////////////////////////////////////////////////////////////////////////
 		{
 
 			Name:  "list",
