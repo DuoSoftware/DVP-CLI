@@ -48,7 +48,7 @@ type SwarmInstanceIn struct {
 }
 
 type SwarmNodeOut struct {
-	UniqueId      string
+	UUID          string
 	Name          string
 	Status        bool
 	Code          string
@@ -1174,8 +1174,8 @@ func main() {
 											fmt.Println("%v", containerInstance.Node)
 											for _, snode := range cs.Result.SwarmNode {
 												fmt.Println("ci node id: ", containerInstance.Node.ID)
-												fmt.Println("snode.UniqueId: ", snode.UniqueId)
-												if containerInstance.Node.ID == snode.UniqueId {
+												fmt.Println("snode.UniqueId: ", snode.UUID)
+												if containerInstance.Node.ID == snode.UUID {
 													hdomain = snode.Domain
 												}
 											}
@@ -1254,26 +1254,29 @@ func main() {
 									f.Write(b)
 									f.Close()
 
-									iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/", reghost, regport)
-									var ibs BasicResult
-
-									ir := restclient.RequestResponse{
-										Url:    iurl,
-										Method: "POST",
-										Data:   &dep,
-										Result: &ibs,
-									}
-
-									iStatus, err := restclient.Do(&ir)
-
-									if err != nil {
-										//panic(err)
-									}
-									fmt.Println(iStatus, ibs)
-
 								}
+
+								iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/HealthMonitor/Node", reghost, regport)
+								var ibs BasicResult
+
+								ir := restclient.RequestResponse{
+									Url:    iurl,
+									Method: "POST",
+									Data:   &dep,
+									Result: &ibs,
+								}
+
+								iStatus, err := restclient.Do(&ir)
+
+								if err != nil {
+									//panic(err)
+								}
+								fmt.Println("%s %s %v", iurl, iStatus, ibs)
+
 							}
+
 						}
+
 					}
 				}
 			},
@@ -1361,11 +1364,11 @@ func main() {
 					case msg := <-listener:
 
 						//busybox node:DUOVOICEAPP2 , stop , a3c37ba2fbfae960825c978bc44b3a6928d0d428fa70fff6a046c97ee228973f , 1443417873
-						fmt.Printf("Received: from - %s, Status-%s, ID-%s, Time-%s\n", msg.From, msg.Status, msg.ID, msg.Time)
+						fmt.Printf("Received: from-%s, Status-%s, ID-%s, Time-%s\n", msg.From, msg.Status, msg.ID, msg.Time)
 
 						///get instance details///////////////////////////////////////////////////////////////////////////////////////////
 
-						url := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Node/%s", reghost, regport, msg.ID)
+						url := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/NodeByInstanceId/%s", reghost, regport, msg.ID)
 
 						var s InstanceResult
 
@@ -1398,7 +1401,7 @@ func main() {
 
 							case "destroy": //container
 
-								iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/Node/%s/Instance/%s", reghost, regport, s.Result.UUID, msg.ID)
+								iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Node/%s/Instance/%s", reghost, regport, s.Result.UUID, msg.ID)
 
 								var ibs BasicResult
 
@@ -1414,11 +1417,11 @@ func main() {
 									//panic(err)
 								}
 
-								fmt.Println(iStatus)
+								fmt.Println(iurl, iStatus)
 
 							case "stop":
 
-								iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/Node/%s/Instance/%s/Active/%s", reghost, regport, s.Result.UUID, msg.ID, msg.Status)
+								iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/Node/%s/Instance/%s/Status/%s", reghost, regport, s.Result.UUID, msg.ID, msg.Status)
 								hUrl := fmt.Sprintf("http://%s:%s/frontends/%s/backend?backend=%s", apihost, "5000", s.Result.FrontEnd, s.Result.BackEnd)
 
 								var ibs BasicResult
@@ -1441,7 +1444,7 @@ func main() {
 									//panic(err)
 								}
 
-								fmt.Println(iStatus, hStatus)
+								fmt.Println(iurl, iStatus, hUrl, hStatus)
 							default:
 
 							}
