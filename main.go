@@ -30,21 +30,22 @@ type SwarmInstanceOut struct {
 }
 
 type SwarmInstanceIn struct {
-	SwarmNodeUuid string
-	Name          string
-	ParentApp     string
-	UUID          string
-	Code          string
-	FrontEnd      string
-	BackEnd       string
-	Company       int
-	Tenant        int
-	Class         string
-	Type          string
-	Category      string
-	NodeName      string
-	Envs          []ENV
-	Ports         []Port
+	SwarmNodeUuid  string
+	DeploymentUUID string
+	Name           string
+	ParentApp      string
+	UUID           string
+	Code           string
+	FrontEnd       string
+	BackEnd        string
+	Company        int
+	Tenant         int
+	Class          string
+	Type           string
+	Category       string
+	NodeName       string
+	Envs           []ENV
+	Ports          []Port
 }
 
 type SwarmNodeOut struct {
@@ -122,6 +123,13 @@ type InstanceResult struct {
 	CustomMessage string
 	IsSuccess     bool
 	Result        SwarmInstanceOut
+}
+
+type NodeResult struct {
+	Exception     string
+	CustomMessage string
+	IsSuccess     bool
+	Result        SwarmNodeOut
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -1138,6 +1146,7 @@ func main() {
 										/////////////////////////////////////////////////////////////////////////////////////////////////////////
 										//Cmd: cmd,
 										Var = append(Var, fmt.Sprintf("VIRTUAL_HOST=%s.*", img.Name))
+										Var = append(Var, fmt.Sprintf("LB_FRONTEND=%s.%s", img.Name, cs.Result.LBDomain))
 
 										fmt.Println("All VARS ----------->", Var)
 										container.Config = &docker.Config{Image: img.Name, Env: Var}
@@ -1177,6 +1186,7 @@ func main() {
 												fmt.Println("snode.UniqueId: ", snode.UUID)
 												if containerInstance.Node.ID == snode.UUID {
 													hdomain = snode.Domain
+													break
 												}
 											}
 											fmt.Println("End find hdomain", hdomain)
@@ -1194,6 +1204,7 @@ func main() {
 											idata.NodeName = containerInstance.Node.Name
 											idata.ParentApp = img.Name
 											idata.SwarmNodeUuid = containerInstance.Node.ID
+											idata.DeploymentUUID = dep.UUID
 											idata.UUID = containerInstance.ID
 											ins.UUID = containerInstance.ID
 											ins.State = containerInstance.State.String()
@@ -1370,7 +1381,7 @@ func main() {
 
 						url := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/NodeByInstanceId/%s", reghost, regport, msg.ID)
 
-						var s InstanceResult
+						var s NodeResult
 
 						r := restclient.RequestResponse{
 							Url:    url,
@@ -1380,10 +1391,22 @@ func main() {
 
 						status, err := restclient.Do(&r)
 
-						if err != nil {
+						urlx := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/InstanceById/%s", reghost, regport, msg.ID)
+
+						var sx InstanceResult
+
+						rx := restclient.RequestResponse{
+							Url:    urlx,
+							Method: "GET",
+							Result: &sx,
+						}
+
+						statusx, errx := restclient.Do(&rx)
+
+						if err != nil || errx != nil {
 							//panic(err)
 						}
-						if status == 200 {
+						if status == 200 && statusx == 200 {
 
 							switch msg.Status {
 
@@ -1421,8 +1444,8 @@ func main() {
 
 							case "stop":
 
-								iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/Node/%s/Instance/%s/Status/%s", reghost, regport, s.Result.UUID, msg.ID, msg.Status)
-								hUrl := fmt.Sprintf("http://%s:%s/frontends/%s/backend?backend=%s", apihost, "5000", s.Result.FrontEnd, s.Result.BackEnd)
+								iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Node/%s/Instance/%s/Status/%s", reghost, regport, s.Result.UUID, msg.ID, msg.Status)
+								hUrl := fmt.Sprintf("http://%s:%s/frontends/%s", apihost, "5000", sx.Result.FrontEnd)
 
 								var ibs BasicResult
 								var hbs string
