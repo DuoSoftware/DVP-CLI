@@ -912,7 +912,7 @@ func main() {
 										ins.Type = img.Type
 										ins.Category = img.Category
 
-										fmt.Printf("Please enter host name : ")
+										fmt.Printf("Please enter host name for ", img.Name)
 										reader := bufio.NewReader(os.Stdin)
 										text, _ := reader.ReadString('\n')
 										fmt.Println(text)
