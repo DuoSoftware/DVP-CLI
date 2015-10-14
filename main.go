@@ -1159,19 +1159,21 @@ func main() {
 										if errx != nil {
 
 											fmt.Println("CreateContainer %v", errx)
+											break
 										}
-
-										containerInstance, errx := client.InspectContainer(containerInstanceId.ID)
-
-										if errx != nil {
-
-											fmt.Println("CreateContainer %v", errx)
-										}
-
-										fmt.Println("Container ---> %v", containerInstance)
-										fmt.Println("End Create Container%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 
 										if errx == nil {
+
+											containerInstance, errx := client.InspectContainer(containerInstanceId.ID)
+
+											if errx != nil {
+
+												fmt.Println("CreateContainer %v", errx)
+											}
+
+											fmt.Println("Container ---> %v", containerInstance)
+											fmt.Println("End Create Container%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
+
 											fmt.Println("Error not found%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%")
 
 											//--------------------------------------------------------------------------------------------
