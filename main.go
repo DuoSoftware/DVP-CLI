@@ -237,7 +237,7 @@ type Deployment struct {
 	Instances      []Instance
 }
 
-type Images []Image
+//type Images []Image
 
 func (s Template) Len() int {
 	return len(s.TemplateImage)
@@ -266,9 +266,6 @@ func main() {
 				fmt.Println("VirtualSize: ", img.VirtualSize)
 				fmt.Println("ParentId: ", img.ParentID)
 			}*/
-
-
-
 
 	app := cli.NewApp()
 
@@ -326,8 +323,6 @@ func main() {
 
 				client, _ := docker.NewClient(endpoint)
 				imgs, _ := client.ListContainers(docker.ListContainersOptions{All: false})
-
-
 
 				imageID := "0"
 				imageFound := false
@@ -673,7 +668,7 @@ func main() {
 
 											if !itemFound {
 
-												fmt.Println("Dependency Instance %s NotFound ----------->", depe.Name)
+												fmt.Printf("Dependency Instance %s NotFound -----------> \n", depe.Name)
 
 											}
 
@@ -684,7 +679,7 @@ func main() {
 										Var = append(Var, fmt.Sprintf("VIRTUAL_HOST=%s.%s", img.Name, dep.PublicDomain))
 
 										fmt.Println("All VARS ----------->", Var)
-										container.Config = &docker.Config{Image: img.Name, Env : Var}
+										container.Config = &docker.Config{Image: img.Name, Env: Var}
 
 										fmt.Println(container.Config.Image)
 
@@ -1151,7 +1146,7 @@ func main() {
 
 											if !itemFound {
 
-												fmt.Println("Dependency Instance %s NotFound ----------->", depe.Name)
+												fmt.Printf("Dependency Instance %s NotFound ----------->\n", depe.Name)
 
 											}
 
@@ -1173,7 +1168,7 @@ func main() {
 
 										if errx != nil {
 
-											fmt.Println("CreateContainer %v", errx)
+											fmt.Printf("CreateContainer %v \n", errx)
 											//break
 										} else {
 
@@ -1181,7 +1176,7 @@ func main() {
 
 											if errx != nil {
 
-												fmt.Println("CreateContainer %v", errx)
+												fmt.Printf("CreateContainer %v \n", errx)
 											}
 
 											fmt.Println("Container ---> %v", containerInstance)
@@ -1193,9 +1188,9 @@ func main() {
 											var hdomain string
 											fmt.Println("Start find hdomain", len(cs.Result.SwarmNode))
 											fmt.Println("%%%%%%%%%%%% SwarmNode %%%%%%%%%%%%%%%%%%%%%")
-											fmt.Println("%v", cs.Result.SwarmNode)
+											fmt.Printf("%v\n", cs.Result.SwarmNode)
 											fmt.Println("%%%%%%%%%%%% containerInstance %%%%%%%%%%%%%%%%%%%%%")
-											fmt.Println("%v", containerInstance.Node)
+											fmt.Printf("%v\n", containerInstance.Node)
 											for _, snode := range cs.Result.SwarmNode {
 												fmt.Println("ci node id: ", containerInstance.Node.ID)
 												fmt.Println("snode.UniqueId: ", snode.UUID)
@@ -1297,7 +1292,7 @@ func main() {
 								if err != nil {
 									//panic(err)
 								}
-								fmt.Println("%s %s %v", iurl, iStatus, ibs)
+								fmt.Printf("%s %s %v\n", iurl, iStatus, ibs)
 
 							}
 
