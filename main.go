@@ -267,6 +267,9 @@ func main() {
 				fmt.Println("ParentId: ", img.ParentID)
 			}*/
 
+
+
+
 	app := cli.NewApp()
 
 	app.Commands = []cli.Command{
@@ -323,6 +326,8 @@ func main() {
 
 				client, _ := docker.NewClient(endpoint)
 				imgs, _ := client.ListContainers(docker.ListContainersOptions{All: false})
+
+
 
 				imageID := "0"
 				imageFound := false
@@ -679,7 +684,7 @@ func main() {
 										Var = append(Var, fmt.Sprintf("VIRTUAL_HOST=%s.%s", img.Name, dep.PublicDomain))
 
 										fmt.Println("All VARS ----------->", Var)
-										container.Config = &docker.Config{Image: img.Name, Env: Var}
+										container.Config = &docker.Config{Image: img.Name, Env : Var}
 
 										fmt.Println(container.Config.Image)
 
@@ -770,6 +775,11 @@ func main() {
 					Value: "DBTEMPLATE",
 					Usage: "template name to be install",
 				},
+
+				cli.BoolFlag{
+					Name:  "defaultvar",
+					Usage: "run with default values",
+				},
 			},
 
 			Action: func(c *cli.Context) {
@@ -782,6 +792,7 @@ func main() {
 				socket := c.String("unixsocket")
 				template := c.String("template")
 				dockerClusterToken := c.String("token")
+				defaultvar := c.Bool("defaultvar")
 
 				fmt.Printf("Image ----------------> %s", c)
 
@@ -948,6 +959,7 @@ func main() {
 												fmt.Println(text)
 
 												enterValue := strings.TrimSpace(text)
+
 												if len(enterValue) > 0 {
 
 													varValue = enterValue
@@ -1048,16 +1060,18 @@ func main() {
 
 											if vars.Type == "uservariable" {
 
-												fmt.Printf("Please enter value for ENV %s ", vars.Name)
-												reader := bufio.NewReader(os.Stdin)
-												text, _ := reader.ReadString('\n')
-												fmt.Println(text)
+												if !defaultvar {
+													fmt.Printf("Please enter value for ENV %s ", vars.Name)
+													reader := bufio.NewReader(os.Stdin)
+													text, _ := reader.ReadString('\n')
+													fmt.Println(text)
 
-												enterValue := strings.TrimSpace(text)
-												if len(enterValue) > 0 {
+													enterValue := strings.TrimSpace(text)
+													if len(enterValue) > 0 {
 
-													varValue = enterValue
+														varValue = enterValue
 
+													}
 												}
 
 											}
@@ -1147,6 +1161,7 @@ func main() {
 										//Cmd: cmd,
 										Var = append(Var, fmt.Sprintf("VIRTUAL_HOST=%s.*", img.Name))
 										Var = append(Var, fmt.Sprintf("LB_FRONTEND=%s.%s", img.Name, cs.Result.LBDomain))
+										Var = append(Var, fmt.Sprintf("LB_PORT=%d", 80))
 
 										fmt.Println("All VARS ----------->", Var)
 										container.Config = &docker.Config{Image: img.Name, Env: Var}
@@ -1159,10 +1174,8 @@ func main() {
 										if errx != nil {
 
 											fmt.Println("CreateContainer %v", errx)
-											break
-										}
-
-										if errx == nil {
+											//break
+										} else {
 
 											containerInstance, errx := client.InspectContainer(containerInstanceId.ID)
 
