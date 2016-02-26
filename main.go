@@ -180,6 +180,13 @@ type Image struct {
 	Services           []Service
 }
 
+type ImageResult struct {
+	Exception     string
+	CustomMessage string
+	IsSuccess     bool
+	Result        Image
+}
+
 type Template struct {
 	Name          string
 	Description   string
@@ -724,6 +731,139 @@ func main() {
 						}
 					}
 				}
+			},
+		},
+
+		////////////////////////////////////////////update-image////////////////////////////////////////////////////
+
+		{
+			Name:  "update-image",
+			Usage: "update image in swarn cluster",
+
+			Flags: []cli.Flag{
+
+				cli.StringFlag{
+					Name:  "protocol",
+					Value: "http",
+					Usage: "docker remote api protocol to connect",
+				},
+				cli.StringFlag{
+					Name:  "host",
+					Value: "127.0.0.1",
+					Usage: "docker host ip",
+				},
+				cli.StringFlag{
+					Name:  "port",
+					Value: "4243",
+					Usage: "docker host port",
+				},
+				cli.StringFlag{
+					Name:  "unixsocket",
+					Value: "var/run/docker.sock",
+					Usage: "docker unix socket path",
+				},
+				cli.StringFlag{
+					Name:  "sysregistryhost",
+					Value: "127.0.0.1",
+					Usage: "registry ip",
+				},
+				cli.StringFlag{
+					Name:  "sysregistryport",
+					Value: "4243",
+					Usage: "registry port",
+				},
+				cli.StringFlag{
+					Name:  "lbapihost",
+					Value: "127.0.0.1",
+					Usage: "Hipache API host",
+				},
+
+				cli.StringFlag{
+					Name:  "containername",
+					Value: "",
+					Usage: "Container Name",
+				},
+			},
+
+			Action: func(c *cli.Context) {
+
+				protocol := c.String("protocol")
+				host := c.String("host")
+				port := c.String("port")
+				socket := c.String("unixsocket")
+				reghost := c.String("sysregistryhost")
+				regport := c.String("sysregistryport")
+				id := c.String("containername")
+
+				//fmt.Printf("Image ----------------> %s", c)
+
+				endpoint := fmt.Sprintf("http://%s:%s", host, port)
+
+				if protocol == "unix" {
+
+					endpoint = fmt.Sprintf("unix:///%s", socket)
+
+				}
+
+				if len(id) > 0 {
+
+					//http://45.55.142.207:8826/DVP/API/1.0.0.0/SystemRegistry/ImageByName/fileservice
+					urlx := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/ImageByName/%s", reghost, regport, id)
+
+					var imgres ImageResult
+
+					rx := restclient.RequestResponse{
+						Url:    urlx,
+						Method: "GET",
+						Result: &imgres,
+					}
+
+					statusx, errx := restclient.Do(&rx)
+
+					img := imgres.Result
+
+					fmt.Printf("%s -> %d %s", urlx, statusx, img.Name)
+
+					if errx != nil {
+						//panic(err)
+					}
+					if statusx == 200 {
+
+						client, _ := docker.NewClient(endpoint)
+
+						if img.Class == "DOCKER" {
+
+							fmt.Println(img.DockerUrl)
+
+							pullImage := docker.PullImageOptions{Repository: img.DockerUrl, Tag: "latest"}
+							authConf := docker.AuthConfiguration{}
+							erry := client.PullImage(pullImage, authConf)
+							fmt.Printf("pull --->", erry)
+							if erry == nil {
+
+							}
+
+						} else if img.Class == "DOCKERFILE" {
+
+							buildOption := docker.BuildImageOptions{Name: img.Name, Dockerfile: "Dockerfile", SuppressOutput: true, OutputStream: os.Stdout, Remote: img.SourceUrl}
+
+							erry := client.BuildImage(buildOption)
+							fmt.Printf("BuildContainer --->", erry)
+
+							if erry == nil {
+
+							}
+
+						}
+
+					}
+
+				} else {
+
+					fmt.Printf("Container id is required")
+
+				}
+
 			},
 		},
 
