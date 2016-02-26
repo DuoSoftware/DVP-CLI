@@ -65,6 +65,21 @@ type SwarmNodeOut struct {
 	SwarmInstance []SwarmInstanceOut
 }
 
+type SwarmNodeOutx struct {
+	UUID       string
+	Name       string
+	Status     bool
+	Code       string
+	Company    int
+	Tenant     int
+	Class      string
+	Type       string
+	Category   string
+	MainIP     string
+	Domain     string
+	HostDomain string
+}
+
 type SwarmNodeIn struct {
 	Name         string
 	Status       bool
@@ -130,7 +145,7 @@ type NodeResult struct {
 	Exception     string
 	CustomMessage string
 	IsSuccess     bool
-	Result        SwarmNodeOut
+	Result        []SwarmNodeOutx
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -1604,6 +1619,184 @@ func main() {
 			},
 		},
 
+		///////////////////////////////////////////////increase container///////////////////////////////////////////
+
+		{
+			Name:  "scale-container",
+			Usage: "scale container from swarn cluster",
+
+			Flags: []cli.Flag{
+
+				cli.StringFlag{
+					Name:  "protocol",
+					Value: "http",
+					Usage: "docker remote api protocol to connect",
+				},
+				cli.StringFlag{
+					Name:  "host",
+					Value: "127.0.0.1",
+					Usage: "docker host ip",
+				},
+				cli.StringFlag{
+					Name:  "port",
+					Value: "4243",
+					Usage: "docker host port",
+				},
+				cli.StringFlag{
+					Name:  "unixsocket",
+					Value: "var/run/docker.sock",
+					Usage: "docker unix socket path",
+				},
+				cli.StringFlag{
+					Name:  "sysregistryhost",
+					Value: "127.0.0.1",
+					Usage: "registry ip",
+				},
+				cli.StringFlag{
+					Name:  "sysregistryport",
+					Value: "4243",
+					Usage: "registry port",
+				},
+				cli.StringFlag{
+					Name:  "lbapihost",
+					Value: "127.0.0.1",
+					Usage: "Hipache API host",
+				},
+
+				cli.StringFlag{
+					Name:  "containerid",
+					Value: "",
+					Usage: "Container ID",
+				},
+			},
+
+			Action: func(c *cli.Context) {
+
+				protocol := c.String("protocol")
+				host := c.String("host")
+				port := c.String("port")
+				socket := c.String("unixsocket")
+				reghost := c.String("sysregistryhost")
+				regport := c.String("sysregistryport")
+				apihost := c.String("lbapihost")
+				id := c.String("containerid")
+
+				endpoint := fmt.Sprintf("http://%s:%s", host, port)
+
+				if protocol == "unix" {
+
+					endpoint = fmt.Sprintf("unix:///%s", socket)
+
+				}
+
+				if len(id) > 0 {
+
+					urlx := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/InstanceById/%s", reghost, regport, id)
+
+					var sx InstanceResult
+
+					rx := restclient.RequestResponse{
+						Url:    urlx,
+						Method: "GET",
+						Result: &sx,
+					}
+
+					statusx, errx := restclient.Do(&rx)
+
+					fmt.Printf("%s -> %d", urlx, statusx)
+
+					fmt.Printf("%v", sx)
+
+					if errx != nil {
+						//panic(err)
+					}
+					if statusx == 200 {
+
+						client, _ := docker.NewClient(endpoint)
+						containerx, err := client.InspectContainer(id)
+
+						if err == nil {
+
+							fmt.Printf("container %v %v \n", containerx, err)
+
+							container := docker.CreateContainerOptions{}
+
+							u1 := uuid.NewV4()
+							nameuuid := u1.String()
+
+							container.Name = nameuuid
+
+							container.Config = &docker.Config{Image: containerx.Config.Image, Env: containerx.Config.Env}
+
+							cont, errx := client.CreateContainer(container)
+
+							fmt.Printf("container %v %v \n", cont, containerx.Node)
+
+							if errx == nil {
+
+								//cont.Node.ID
+
+								hostConfig := &docker.HostConfig{}
+								hostConfig.PublishAllPorts = true
+
+								url := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Node/%s", reghost, regport, containerx.Node.ID)
+
+								var s NodeResult
+
+								r := restclient.RequestResponse{
+									Url:    url,
+									Method: "GET",
+									Result: &s,
+								}
+
+								status, err := restclient.Do(&r)
+
+								fmt.Printf("%s -> %d", url, status)
+
+								if err != nil {
+									//panic(err)
+								}
+
+								if status == 200 {
+
+									errz := client.StartContainer(container.Name, hostConfig)
+									fmt.Printf("Container --->", errz)
+
+									fmt.Printf("%v", s.Result)
+
+									hUrl := fmt.Sprintf("http://%s:%s/frontends/%s?backends=http://%s.%s", apihost, "5000", sx.Result.FrontEnd, nameuuid, s.Result[0].Domain)
+
+									var hbs string
+									hr := restclient.RequestResponse{
+										Url:    hUrl,
+										Method: "POST",
+										Result: &hbs,
+									}
+
+									hStatus, erry := restclient.Do(&hr)
+
+									fmt.Printf("%s -> %d", hUrl, hStatus)
+
+									if erry != nil {
+
+									}
+
+									if hStatus == 200 {
+
+										fmt.Printf("Backend Successfully added")
+									}
+
+								}
+
+							}
+
+						}
+					}
+
+				}
+			},
+		},
+
 		//////////////////////////////////////////////start-container////////////////////////////////////////////////
 		{
 			Name:  "start-container",
@@ -1885,7 +2078,7 @@ func main() {
 
 							case "destroy": //container
 
-								iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Node/%s/Instance/%s", reghost, regport, s.Result.UUID, msg.ID)
+								iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Node/%s/Instance/%s", reghost, regport, s.Result[0].UUID, msg.ID)
 
 								var ibs BasicResult
 
@@ -1905,7 +2098,7 @@ func main() {
 
 							case "stop":
 
-								iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Node/%s/Instance/%s/Status/%s", reghost, regport, s.Result.UUID, msg.ID, msg.Status)
+								iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Node/%s/Instance/%s/Status/%s", reghost, regport, s.Result[0].UUID, msg.ID, msg.Status)
 								hUrl := fmt.Sprintf("http://%s:%s/frontends/%s", apihost, "5000", sx.Result.FrontEnd)
 
 								var ibs BasicResult
