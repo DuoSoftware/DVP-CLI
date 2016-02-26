@@ -16,17 +16,18 @@ import (
 ///////////////////////////swarm cluster /////////////////////////////////////////
 
 type SwarmInstanceOut struct {
-	Name      string
-	ParentApp string
-	UUID      string
-	Code      string
-	FrontEnd  string
-	BackEnd   string
-	Company   int
-	Tenant    int
-	Class     string
-	Type      string
-	Category  string
+	Name        string
+	ParentApp   string
+	UUID        string
+	Code        string
+	FrontEnd    string
+	BackEnd     string
+	SwarmNodeId string
+	Company     int
+	Tenant      int
+	Class       string
+	Type        string
+	Category    string
 }
 
 type SwarmInstanceIn struct {
@@ -1303,7 +1304,163 @@ func main() {
 			},
 		},
 
-		/////////////////////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////remove-container////////////////////////////////////////////
+
+		{
+			Name:  "remove-container",
+			Usage: "remmove container from swarn cluster",
+
+			Flags: []cli.Flag{
+
+				cli.StringFlag{
+					Name:  "protocol",
+					Value: "http",
+					Usage: "docker remote api protocol to connect",
+				},
+				cli.StringFlag{
+					Name:  "host",
+					Value: "127.0.0.1",
+					Usage: "docker host ip",
+				},
+				cli.StringFlag{
+					Name:  "port",
+					Value: "4243",
+					Usage: "docker host port",
+				},
+				cli.StringFlag{
+					Name:  "unixsocket",
+					Value: "var/run/docker.sock",
+					Usage: "docker unix socket path",
+				},
+				cli.StringFlag{
+					Name:  "sysregistryhost",
+					Value: "127.0.0.1",
+					Usage: "registry ip",
+				},
+				cli.StringFlag{
+					Name:  "sysregistryport",
+					Value: "4243",
+					Usage: "registry port",
+				},
+				cli.StringFlag{
+					Name:  "lbapihost",
+					Value: "127.0.0.1",
+					Usage: "Hipache API host",
+				},
+
+				cli.StringFlag{
+					Name:  "containerid",
+					Value: "",
+					Usage: "Container ID",
+				},
+			},
+
+			Action: func(c *cli.Context) {
+
+				protocol := c.String("protocol")
+				host := c.String("host")
+				port := c.String("port")
+				socket := c.String("unixsocket")
+				reghost := c.String("sysregistryhost")
+				regport := c.String("sysregistryport")
+				apihost := c.String("lbapihost")
+				id := c.String("containerid")
+
+				//fmt.Printf("Image ----------------> %s", c)
+
+				endpoint := fmt.Sprintf("http://%s:%s", host, port)
+
+				if protocol == "unix" {
+
+					endpoint = fmt.Sprintf("unix:///%s", socket)
+
+				}
+
+				if len(id) > 0 {
+
+					//http://45.55.142.207:8826/DVP/API/1.0.0.0/SystemRegistry/InstanceById/d52cd7fc09684cf4788b9e3b7cda97f0c9c0d78c0c7fc9a4967bd87de5c0860e
+
+					client, _ := docker.NewClient(endpoint)
+					errx := client.KillContainer(docker.KillContainerOptions{ID: id})
+					if errx != nil {
+
+						fmt.Printf("Kill container %s is failed", id)
+
+					} else {
+
+						//hUrl := fmt.Sprintf("http://%s:%s/frontends?host=%s.%s&backends=http://%s.%s", cs.Result.LBIP, "5000", img.Name, cs.Result.LBDomain, img.Name, hdomain)
+						//DELETE /frontends/:name/backend?backend=http://host1:port
+
+						urlx := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/InstanceById/%s", reghost, regport, id)
+
+						var sx InstanceResult
+
+						rx := restclient.RequestResponse{
+							Url:    urlx,
+							Method: "GET",
+							Result: &sx,
+						}
+
+						statusx, errx := restclient.Do(&rx)
+
+						fmt.Printf("%s -> %d", urlx, statusx)
+
+						if errx != nil {
+							//panic(err)
+						}
+						if statusx == 200 {
+
+							////DELETE /frontends/:name/backend?backend=http://host1:port
+
+							hUrl := fmt.Sprintf("http://%s:%s/frontends/%s/backend?backend=%s", apihost, "5000", sx.Result.FrontEnd, sx.Result.BackEnd)
+
+							hr := restclient.RequestResponse{
+								Url:    hUrl,
+								Method: "DELETE",
+							}
+
+							hStatus, erry := restclient.Do(&hr)
+
+							fmt.Printf("%s -> %d", hUrl, hStatus)
+
+							if erry != nil {
+
+							}
+							//hStatus == 200
+							if hStatus == 200 {
+
+								fmt.Printf("Container successfully deleted %s", id)
+
+								///DVP/API/:version/SystemRegistry/Node/:uuid/Instance/:id/Status/:status
+
+								iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Node/%s/Instance/%s/Status/down", reghost, regport, sx.Result.SwarmNodeId, id)
+
+								ir := restclient.RequestResponse{
+									Url:    iurl,
+									Method: "PUT",
+								}
+
+								iStatus, err := restclient.Do(&ir)
+
+								if err != nil {
+									//panic(err)
+								}
+
+								fmt.Printf("%s -> %d", iurl, iStatus)
+							}
+						}
+					}
+
+				} else {
+
+					fmt.Printf("Container id is required")
+
+				}
+
+			},
+		},
+
+		//////////////////////////////////////////////////////////////////////////////////////////////////////
 		{
 			Name:  "monitor",
 			Usage: "monitor helth of swarn cluster",
@@ -1487,7 +1644,7 @@ func main() {
 			},
 		},
 
-		///////////////////////////////////////////////////////////////////////////////////
+		//////////////////////////////////////////////////////////////////////////////////////////////////////
 		{
 
 			Name:  "list",
