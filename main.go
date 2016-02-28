@@ -750,7 +750,6 @@ func main() {
 		},
 
 		////////////////////////////////////////////update-image////////////////////////////////////////////////////
-
 		{
 			Name:  "update-image",
 			Usage: "update image in swarn cluster",
@@ -1620,7 +1619,6 @@ func main() {
 		},
 
 		///////////////////////////////////////////////increase container///////////////////////////////////////////
-
 		{
 			Name:  "scale-container",
 			Usage: "scale container from swarn cluster",
@@ -1784,15 +1782,50 @@ func main() {
 									if hStatus == 200 {
 
 										fmt.Printf("Backend Successfully added")
+
+										idata := SwarmInstanceIn{}
+										idata.Class = sx.Result.Class
+										idata.Type = sx.Result.Type
+										idata.Category = sx.Result.Category
+										idata.Company = sx.Result.Company
+										idata.Tenant = sx.Result.Tenant
+										idata.Code = nameuuid
+										idata.NodeName = containerx.Node.Name
+										idata.ParentApp = sx.Result.ParentApp
+										idata.SwarmNodeUuid = containerx.Node.ID
+										idata.DeploymentUUID = cont.ID
+										idata.UUID = cont.ID
+
+										idata.Name = cont.Name
+										idata.FrontEnd = sx.Result.FrontEnd
+										idata.BackEnd = fmt.Sprintf("http://%s.%s", nameuuid, s.Result[0].Domain)
+
+										iurl := fmt.Sprintf("http://%s:%s/DVP/API/1.0/SystemRegistry/Instance", reghost, regport)
+
+										var ibs BasicResult
+										//var hbs string
+
+										ir := restclient.RequestResponse{
+											Url:    iurl,
+											Method: "POST",
+											Data:   &idata,
+											Result: &ibs,
+										}
+
+										iStatus, err := restclient.Do(&ir)
+
+										if err != nil {
+
+										}
+
+										if iStatus == 200 {
+
+										}
 									}
-
 								}
-
 							}
-
 						}
 					}
-
 				}
 			},
 		},
